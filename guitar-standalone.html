@@ -1,0 +1,788 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Guitar — Chords & Scales</title>
+<style>
+/* ============================================================
+   Guitar — pure CSS, no external dependencies
+   ============================================================ */
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --bg:          #1a1a2e;
+  --surface:     #16213e;
+  --panel:       #0f3460;
+  --accent:      #e94560;
+  --accent2:     #f5a623;
+  --text:        #e0e0e0;
+  --text-dim:    #888;
+  --border:      #2a3a5c;
+  --radius:      10px;
+  --shadow:      0 4px 24px rgba(0,0,0,0.5);
+  --font-ui:     'Segoe UI', system-ui, sans-serif;
+  --font-mono:   'Courier New', monospace;
+  --fret-bg:     #f5e6c8;
+}
+
+html, body {
+  height: 100%;
+}
+
+body {
+  font-family: var(--font-ui);
+  background: var(--bg);
+  color: var(--text);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 100vh;
+  padding: 24px 16px 40px;
+}
+
+/* ---- Header ---- */
+
+header {
+  width: 100%;
+  max-width: 900px;
+  margin-bottom: 24px;
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+}
+
+header h1 {
+  font-size: 1.8rem;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  color: var(--accent2);
+}
+
+header p.subtitle {
+  color: var(--text-dim);
+  font-size: 0.9rem;
+}
+
+/* ---- Control panel ---- */
+
+.controls {
+  width: 100%;
+  max-width: 900px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px 24px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px 32px;
+  align-items: flex-end;
+  margin-bottom: 24px;
+  box-shadow: var(--shadow);
+}
+
+.control-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 140px;
+}
+
+.control-group label {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-dim);
+  font-weight: 600;
+}
+
+select, input[type="range"] {
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 7px 10px;
+  font-size: 0.9rem;
+  font-family: var(--font-ui);
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.15s;
+  appearance: auto;
+}
+
+select:hover, select:focus {
+  border-color: var(--accent2);
+}
+
+input[type="range"] {
+  padding: 4px 0;
+  accent-color: var(--accent2);
+  width: 100%;
+}
+
+.toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-bottom: 4px;
+}
+
+.toggle-row input[type="checkbox"] {
+  accent-color: var(--accent2);
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.toggle-row label {
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  cursor: pointer;
+  user-select: none;
+}
+
+/* ---- Display title ---- */
+
+.display-title-wrap {
+  width: 100%;
+  max-width: 900px;
+  margin-bottom: 12px;
+}
+
+#display-title {
+  font-size: 1.4rem;
+  font-weight: 600;
+  color: var(--accent2);
+  letter-spacing: -0.3px;
+}
+
+/* ---- Fretboard card ---- */
+
+.fretboard-card {
+  width: 100%;
+  max-width: 900px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px 20px 16px;
+  overflow-x: auto;
+  box-shadow: var(--shadow);
+  margin-bottom: 20px;
+}
+
+#fretboard {
+  display: block;
+  width: 100%;
+}
+
+#fretboard svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* ---- Legend ---- */
+
+.legend-card {
+  width: 100%;
+  max-width: 900px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 20px;
+  box-shadow: var(--shadow);
+}
+
+.legend-heading {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-dim);
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+
+#legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 20px;
+}
+
+.legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.88rem;
+}
+
+.legend-swatch {
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid rgba(255,255,255,0.15);
+  flex-shrink: 0;
+}
+
+.legend-label {
+  color: var(--text);
+}
+
+/* ---- Responsive ---- */
+
+@media (max-width: 640px) {
+  header h1 { font-size: 1.4rem; }
+  .controls { padding: 16px; gap: 16px; }
+  .fretboard-card { padding: 16px 12px 12px; }
+}
+
+  </style>
+  </head>
+<body>
+
+  <header>
+    <h1>🎸 Guitar</h1>
+    <p class="subtitle">Chords &amp; scales on the fretboard</p>
+  </header>
+
+  <!-- Control panel -->
+  <section class="controls" aria-label="Controls">
+
+    <!-- Mode -->
+    <div class="control-group">
+      <label for="sel-mode">Mode</label>
+      <select id="sel-mode">
+        <option value="chord">Chord</option>
+        <option value="scale">Scale</option>
+      </select>
+    </div>
+
+    <!-- Root note -->
+    <div class="control-group">
+      <label for="sel-root">Root note</label>
+      <select id="sel-root"></select>
+    </div>
+
+    <!-- Chord selector (visible in chord mode) -->
+    <div class="control-group" id="chord-row">
+      <label for="sel-chord">Chord type</label>
+      <select id="sel-chord"></select>
+    </div>
+
+    <!-- Scale selector (visible in scale mode) -->
+    <div class="control-group" id="scale-row" style="display:none">
+      <label for="sel-scale">Scale type</label>
+      <select id="sel-scale"></select>
+    </div>
+
+    <!-- Tuning -->
+    <div class="control-group">
+      <label for="sel-tuning">Tuning</label>
+      <select id="sel-tuning"></select>
+    </div>
+
+    <!-- Fret range -->
+    <div class="control-group">
+      <label for="sel-frets">Show up to fret <span id="frets-label">12</span></label>
+      <input type="range" id="sel-frets" min="5" max="24" value="12" step="1">
+    </div>
+
+    <!-- Flat/sharp toggle -->
+    <div class="control-group">
+      <label>&nbsp;</label>
+      <div class="toggle-row">
+        <input type="checkbox" id="toggle-flats">
+        <label for="toggle-flats">Use ♭ spellings</label>
+      </div>
+    </div>
+
+  </section>
+
+  <!-- Title -->
+  <div class="display-title-wrap">
+    <span id="display-title"></span>
+  </div>
+
+  <!-- Fretboard -->
+  <div class="fretboard-card">
+    <div id="fretboard"></div>
+  </div>
+
+  <!-- Legend -->
+  <div class="legend-card">
+    <div class="legend-heading">Note degrees</div>
+    <div id="legend"></div>
+  </div>
+
+<script>
+// js/theory.js
+var NOTE_NAMES_SHARP = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+var NOTE_NAMES_FLAT = ["C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B"];
+var NOTE_NAME_TO_PC = (() => {
+  const map = {};
+  NOTE_NAMES_SHARP.forEach((n, i) => {
+    map[n] = i;
+  });
+  NOTE_NAMES_FLAT.forEach((n, i) => {
+    map[n] = i;
+  });
+  map["Cb"] = 11;
+  map["Fb"] = 4;
+  map["B#"] = 0;
+  map["E#"] = 5;
+  return map;
+})();
+function pitchClass(midi) {
+  return (midi % 12 + 12) % 12;
+}
+function pcToName(pc, useFlats = false) {
+  return useFlats ? NOTE_NAMES_FLAT[pc] : NOTE_NAMES_SHARP[pc];
+}
+function nameToPc(name) {
+  const pc = NOTE_NAME_TO_PC[name];
+  if (pc === undefined)
+    throw new Error(`Unknown note name: "${name}"`);
+  return pc;
+}
+function nameToMidi(noteName, oct) {
+  return (oct + 1) * 12 + nameToPc(noteName);
+}
+var INTERVALS = Object.freeze({
+  UNISON: 0,
+  MINOR_SECOND: 1,
+  MAJOR_SECOND: 2,
+  MINOR_THIRD: 3,
+  MAJOR_THIRD: 4,
+  PERFECT_FOURTH: 5,
+  TRITONE: 6,
+  PERFECT_FIFTH: 7,
+  MINOR_SIXTH: 8,
+  MAJOR_SIXTH: 9,
+  MINOR_SEVENTH: 10,
+  MAJOR_SEVENTH: 11,
+  OCTAVE: 12
+});
+var SCALES = Object.freeze({
+  major: [0, 2, 4, 5, 7, 9, 11],
+  natural_minor: [0, 2, 3, 5, 7, 8, 10],
+  harmonic_minor: [0, 2, 3, 5, 7, 8, 11],
+  melodic_minor: [0, 2, 3, 5, 7, 9, 11],
+  pentatonic_major: [0, 2, 4, 7, 9],
+  pentatonic_minor: [0, 3, 5, 7, 10],
+  blues: [0, 3, 5, 6, 7, 10],
+  dorian: [0, 2, 3, 5, 7, 9, 10],
+  phrygian: [0, 1, 3, 5, 7, 8, 10],
+  lydian: [0, 2, 4, 6, 7, 9, 11],
+  mixolydian: [0, 2, 4, 5, 7, 9, 10],
+  locrian: [0, 1, 3, 5, 6, 8, 10],
+  whole_tone: [0, 2, 4, 6, 8, 10],
+  diminished_wh: [0, 2, 3, 5, 6, 8, 9, 11],
+  diminished_hw: [0, 1, 3, 4, 6, 7, 9, 10]
+});
+var SCALE_LABELS = Object.freeze({
+  major: "Major",
+  natural_minor: "Natural Minor",
+  harmonic_minor: "Harmonic Minor",
+  melodic_minor: "Melodic Minor (asc.)",
+  pentatonic_major: "Major Pentatonic",
+  pentatonic_minor: "Minor Pentatonic",
+  blues: "Blues",
+  dorian: "Dorian",
+  phrygian: "Phrygian",
+  lydian: "Lydian",
+  mixolydian: "Mixolydian",
+  locrian: "Locrian",
+  whole_tone: "Whole Tone",
+  diminished_wh: "Diminished (W-H)",
+  diminished_hw: "Diminished (H-W)"
+});
+function getScalePitchClasses(rootPc, scaleName) {
+  const intervals = SCALES[scaleName];
+  if (!intervals)
+    throw new Error(`Unknown scale: "${scaleName}"`);
+  return intervals.map((i) => (rootPc + i) % 12);
+}
+var CHORDS = Object.freeze({
+  major: { intervals: [0, 4, 7], degrees: ["1", "3", "5"] },
+  minor: { intervals: [0, 3, 7], degrees: ["1", "b3", "5"] },
+  diminished: { intervals: [0, 3, 6], degrees: ["1", "b3", "b5"] },
+  augmented: { intervals: [0, 4, 8], degrees: ["1", "3", "#5"] },
+  sus2: { intervals: [0, 2, 7], degrees: ["1", "2", "5"] },
+  sus4: { intervals: [0, 5, 7], degrees: ["1", "4", "5"] },
+  dominant7: { intervals: [0, 4, 7, 10], degrees: ["1", "3", "5", "b7"] },
+  major7: { intervals: [0, 4, 7, 11], degrees: ["1", "3", "5", "7"] },
+  minor7: { intervals: [0, 3, 7, 10], degrees: ["1", "b3", "5", "b7"] },
+  minorMajor7: { intervals: [0, 3, 7, 11], degrees: ["1", "b3", "5", "7"] },
+  diminished7: { intervals: [0, 3, 6, 9], degrees: ["1", "b3", "b5", "bb7"] },
+  halfDim7: { intervals: [0, 3, 6, 10], degrees: ["1", "b3", "b5", "b7"] },
+  augmented7: { intervals: [0, 4, 8, 10], degrees: ["1", "3", "#5", "b7"] },
+  dominant9: { intervals: [0, 4, 7, 10, 14], degrees: ["1", "3", "5", "b7", "9"] },
+  major9: { intervals: [0, 4, 7, 11, 14], degrees: ["1", "3", "5", "7", "9"] },
+  minor9: { intervals: [0, 3, 7, 10, 14], degrees: ["1", "b3", "5", "b7", "9"] },
+  add9: { intervals: [0, 4, 7, 14], degrees: ["1", "3", "5", "9"] },
+  dominant6: { intervals: [0, 4, 7, 9], degrees: ["1", "3", "5", "6"] },
+  minor6: { intervals: [0, 3, 7, 9], degrees: ["1", "b3", "5", "6"] },
+  power: { intervals: [0, 7], degrees: ["1", "5"] }
+});
+var CHORD_LABELS = Object.freeze({
+  major: "Major",
+  minor: "Minor",
+  diminished: "Diminished",
+  augmented: "Augmented",
+  sus2: "Sus2",
+  sus4: "Sus4",
+  dominant7: "Dominant 7th",
+  major7: "Major 7th",
+  minor7: "Minor 7th",
+  minorMajor7: "Minor/Major 7th",
+  diminished7: "Diminished 7th",
+  halfDim7: "Half-Diminished 7th",
+  augmented7: "Augmented 7th",
+  dominant9: "Dominant 9th",
+  major9: "Major 9th",
+  minor9: "Minor 9th",
+  add9: "Add 9",
+  dominant6: "Dominant 6th",
+  minor6: "Minor 6th",
+  power: "Power Chord"
+});
+function getChordPitchClasses(rootPc, chordName) {
+  const chord = CHORDS[chordName];
+  if (!chord)
+    throw new Error(`Unknown chord: "${chordName}"`);
+  return {
+    pitchClasses: chord.intervals.map((i) => (rootPc + i) % 12),
+    degrees: chord.degrees
+  };
+}
+
+// js/fretboard.js
+function parseTuning(spec) {
+  if (!Array.isArray(spec) || spec.length !== 6) {
+    throw new Error("Tuning must be an array of 6 values");
+  }
+  return spec.map((v) => {
+    if (typeof v === "number")
+      return v;
+    if (typeof v === "string") {
+      const match = v.match(/^([A-Ga-g][#b]?)(-?\d+)$/);
+      if (!match)
+        throw new Error(`Cannot parse note: "${v}"`);
+      const noteName = match[1].charAt(0).toUpperCase() + match[1].slice(1);
+      return nameToMidi(noteName, parseInt(match[2], 10));
+    }
+    throw new Error(`Invalid tuning value: ${v}`);
+  });
+}
+var TUNINGS = Object.freeze({
+  standard: ["E2", "A2", "D3", "G3", "B3", "E4"],
+  drop_d: ["D2", "A2", "D3", "G3", "B3", "E4"],
+  open_g: ["D2", "G2", "D3", "G3", "B3", "D4"],
+  open_d: ["D2", "A2", "D3", "F#3", "A3", "D4"],
+  open_e: ["E2", "B2", "E3", "G#3", "B3", "E4"],
+  open_a: ["E2", "A2", "E3", "A3", "C#4", "E4"],
+  dadgad: ["D2", "A2", "D3", "G3", "A3", "D4"],
+  half_step_down: ["Eb2", "Ab2", "Db3", "Gb3", "Bb3", "Eb4"],
+  full_step_down: ["D2", "G2", "C3", "F3", "A3", "D4"],
+  drop_c: ["C2", "G2", "C3", "F3", "A3", "D4"]
+});
+var TUNING_LABELS = Object.freeze({
+  standard: "Standard (EADGBe)",
+  drop_d: "Drop D (DADGBe)",
+  open_g: "Open G (DGDGBd)",
+  open_d: "Open D (DADf#ad)",
+  open_e: "Open E (EBEg#be)",
+  open_a: "Open A (EAEAc#e)",
+  dadgad: "DADGAD",
+  half_step_down: "Half Step Down (Eb)",
+  full_step_down: "Full Step Down (D)",
+  drop_c: "Drop C"
+});
+function buildFretboardMap(tuningSpec, maxFret = 12) {
+  const openNotes = parseTuning(tuningSpec);
+  return openNotes.map((open) => {
+    const frets = [];
+    for (let fret = 0;fret <= maxFret; fret++)
+      frets.push(open + fret);
+    return frets;
+  });
+}
+function findPositions(targetPcs, tuningSpec, maxFret = 12) {
+  const map = buildFretboardMap(tuningSpec, maxFret);
+  const positions = [];
+  map.forEach((stringFrets, strIdx) => {
+    stringFrets.forEach((midi, fret) => {
+      const pc = pitchClass(midi);
+      const degreeIndex = targetPcs.indexOf(pc);
+      if (degreeIndex !== -1) {
+        positions.push({ string: strIdx + 1, fret, midi, pc, degreeIndex });
+      }
+    });
+  });
+  return positions;
+}
+
+// js/renderer.js
+var DEFAULTS = {
+  maxFret: 12,
+  stringCount: 6,
+  marginTop: 40,
+  marginLeft: 60,
+  marginRight: 28,
+  marginBottom: 32,
+  fretWidth: 56,
+  stringSpacing: 28,
+  dotRadius: 11,
+  nutWidth: 6,
+  fretLineWidth: 1.5,
+  openDotRadius: 10,
+  degreeColors: [
+    "#e74c3c",
+    "#2980b9",
+    "#27ae60",
+    "#8e44ad",
+    "#f39c12",
+    "#16a085",
+    "#d35400",
+    "#2c3e50",
+    "#c0392b",
+    "#1abc9c"
+  ],
+  fretboardColor: "#f5e6c8",
+  fretColor: "#8b7355",
+  stringColor: "#4a3728",
+  nutColor: "#2c1810",
+  markerColor: "#d4b896",
+  labelColor: "#ffffff"
+};
+var INLAY_FRETS = [3, 5, 7, 9, 12];
+var DOUBLE_INLAY_FRET = 12;
+function stringY(s, strCount, cfg) {
+  return cfg.marginTop + (strCount - 1 - s) * cfg.stringSpacing;
+}
+function degreeColor(index, cfg) {
+  return cfg.degreeColors[index % cfg.degreeColors.length];
+}
+function ns(tag) {
+  return document.createElementNS("http://www.w3.org/2000/svg", tag);
+}
+function attrs(el, map) {
+  for (const [k, v] of Object.entries(map))
+    el.setAttribute(k, v);
+  return el;
+}
+function svgRect(parent, x, y, w, h, extra = {}) {
+  parent.appendChild(attrs(ns("rect"), { x, y, width: w, height: h, ...extra }));
+}
+function svgCircle(parent, cx, cy, r, extra = {}) {
+  parent.appendChild(attrs(ns("circle"), { cx, cy, r, ...extra }));
+}
+function svgLine(parent, x1, y1, x2, y2, extra = {}) {
+  parent.appendChild(attrs(ns("line"), { x1, y1, x2, y2, ...extra }));
+}
+function svgText(parent, x, y, content, extra = {}) {
+  const el = attrs(ns("text"), { x, y, ...extra });
+  el.textContent = content;
+  parent.appendChild(el);
+}
+function renderFretboard(container, positions, degreeLabels = [], opts = {}) {
+  const cfg = Object.assign({}, DEFAULTS, opts);
+  const strCount = cfg.stringCount;
+  const fretCount = cfg.maxFret;
+  const boardWidth = fretCount * cfg.fretWidth;
+  const boardHeight = (strCount - 1) * cfg.stringSpacing;
+  const svgW = cfg.marginLeft + boardWidth + cfg.marginRight;
+  const svgH = cfg.marginTop + boardHeight + cfg.marginBottom;
+  const svg = attrs(ns("svg"), {
+    viewBox: `0 0 ${svgW} ${svgH}`,
+    preserveAspectRatio: "xMidYMid meet"
+  });
+  svgRect(svg, cfg.marginLeft, cfg.marginTop, boardWidth, boardHeight, { fill: cfg.fretboardColor, rx: 2 });
+  INLAY_FRETS.forEach((f) => {
+    if (f > fretCount)
+      return;
+    const cx = cfg.marginLeft + (f - 0.5) * cfg.fretWidth;
+    if (f === DOUBLE_INLAY_FRET) {
+      svgCircle(svg, cx, cfg.marginTop + cfg.stringSpacing, 5, { fill: cfg.markerColor });
+      svgCircle(svg, cx, cfg.marginTop + boardHeight - cfg.stringSpacing, 5, { fill: cfg.markerColor });
+    } else {
+      svgCircle(svg, cx, cfg.marginTop + boardHeight / 2, 5, { fill: cfg.markerColor });
+    }
+  });
+  for (let f = 1;f <= fretCount; f++) {
+    const x = cfg.marginLeft + f * cfg.fretWidth;
+    svgLine(svg, x, cfg.marginTop, x, cfg.marginTop + boardHeight, { stroke: cfg.fretColor, "stroke-width": cfg.fretLineWidth });
+  }
+  svgRect(svg, cfg.marginLeft - cfg.nutWidth / 2, cfg.marginTop - 2, cfg.nutWidth, boardHeight + 4, { fill: cfg.nutColor, rx: 1 });
+  for (let s = 0;s < strCount; s++) {
+    const y = stringY(s, strCount, cfg);
+    const thickness = 0.6 + (strCount - 1 - s) / (strCount - 1) * 2;
+    svgLine(svg, cfg.marginLeft, y, cfg.marginLeft + boardWidth, y, { stroke: cfg.stringColor, "stroke-width": thickness });
+  }
+  for (let f = 1;f <= fretCount; f++) {
+    svgText(svg, cfg.marginLeft + (f - 0.5) * cfg.fretWidth, cfg.marginTop + boardHeight + 20, String(f), {
+      "text-anchor": "middle",
+      "dominant-baseline": "middle",
+      "font-size": "11",
+      "font-family": "monospace",
+      fill: "#888"
+    });
+  }
+  const openByString = new Map;
+  const fretted = [];
+  positions.forEach((pos) => {
+    if (pos.fret === 0) {
+      if (!openByString.has(pos.string))
+        openByString.set(pos.string, pos);
+    } else {
+      fretted.push(pos);
+    }
+  });
+  openByString.forEach((pos, strNum) => {
+    const x = cfg.marginLeft - cfg.nutWidth - cfg.openDotRadius - 4;
+    const y = stringY(strNum - 1, strCount, cfg);
+    const color = degreeColor(pos.degreeIndex, cfg);
+    svgCircle(svg, x, y, cfg.openDotRadius, { fill: color, stroke: "#fff", "stroke-width": 1.5 });
+    svgText(svg, x, y, degreeLabels[pos.degreeIndex] ?? "", {
+      "text-anchor": "middle",
+      "dominant-baseline": "middle",
+      "font-size": "10",
+      "font-family": "sans-serif",
+      "font-weight": "bold",
+      fill: cfg.labelColor
+    });
+  });
+  fretted.forEach((pos) => {
+    const x = cfg.marginLeft + (pos.fret - 0.5) * cfg.fretWidth;
+    const y = stringY(pos.string - 1, strCount, cfg);
+    const color = degreeColor(pos.degreeIndex, cfg);
+    svgCircle(svg, x, y, cfg.dotRadius, { fill: color, stroke: "#fff", "stroke-width": 1.5 });
+    svgText(svg, x, y, degreeLabels[pos.degreeIndex] ?? "", {
+      "text-anchor": "middle",
+      "dominant-baseline": "middle",
+      "font-size": "11",
+      "font-family": "sans-serif",
+      "font-weight": "bold",
+      fill: cfg.labelColor
+    });
+  });
+  container.innerHTML = "";
+  container.appendChild(svg);
+}
+function renderLegend(container, degreeLabels, noteNames = [], opts = {}) {
+  const cfg = Object.assign({}, DEFAULTS, opts);
+  container.innerHTML = "";
+  degreeLabels.forEach((label, i) => {
+    const item = document.createElement("span");
+    item.className = "legend-item";
+    const swatch = document.createElement("span");
+    swatch.className = "legend-swatch";
+    swatch.style.background = degreeColor(i, cfg);
+    const lbl = document.createElement("span");
+    lbl.className = "legend-label";
+    lbl.textContent = noteNames[i] ? `${label} (${noteNames[i]})` : label;
+    item.appendChild(swatch);
+    item.appendChild(lbl);
+    container.appendChild(item);
+  });
+}
+
+// js/app.js
+var state = {
+  mode: "chord",
+  rootName: "C",
+  chordName: "major",
+  scaleName: "major",
+  tuningKey: "standard",
+  maxFret: 12,
+  useFlats: false
+};
+function render() {
+  const rootPc = nameToPc(state.rootName);
+  const tuning = TUNINGS[state.tuningKey];
+  let pitchClasses, degrees, displayTitle;
+  if (state.mode === "chord") {
+    ({ pitchClasses, degrees } = getChordPitchClasses(rootPc, state.chordName));
+    displayTitle = `${state.rootName} ${CHORD_LABELS[state.chordName]}`;
+  } else {
+    pitchClasses = getScalePitchClasses(rootPc, state.scaleName);
+    degrees = pitchClasses.map((_, i) => String(i + 1));
+    displayTitle = `${state.rootName} ${SCALE_LABELS[state.scaleName]}`;
+  }
+  const noteNames = pitchClasses.map((pc) => pcToName(pc, state.useFlats));
+  const positions = findPositions(pitchClasses, tuning, state.maxFret);
+  renderFretboard(document.getElementById("fretboard"), positions, degrees, { maxFret: state.maxFret });
+  renderLegend(document.getElementById("legend"), degrees, noteNames);
+  document.getElementById("display-title").textContent = displayTitle;
+}
+function populateSelect(el, entries, selected) {
+  el.innerHTML = "";
+  for (const [value, label] of entries) {
+    const opt = document.createElement("option");
+    opt.value = value;
+    opt.textContent = label;
+    if (value === selected)
+      opt.selected = true;
+    el.appendChild(opt);
+  }
+}
+function updateModeUI() {
+  document.getElementById("chord-row").style.display = state.mode === "chord" ? "" : "none";
+  document.getElementById("scale-row").style.display = state.mode === "scale" ? "" : "none";
+}
+function init() {
+  const elMode = document.getElementById("sel-mode");
+  const elRoot = document.getElementById("sel-root");
+  const elChord = document.getElementById("sel-chord");
+  const elScale = document.getElementById("sel-scale");
+  const elTuning = document.getElementById("sel-tuning");
+  const elFlats = document.getElementById("toggle-flats");
+  const elFrets = document.getElementById("sel-frets");
+  const elFretsLabel = document.getElementById("frets-label");
+  populateSelect(elRoot, NOTE_NAMES_SHARP.map((n) => [n, n]), state.rootName);
+  populateSelect(elChord, Object.keys(CHORDS).map((k) => [k, CHORD_LABELS[k]]), state.chordName);
+  populateSelect(elScale, Object.keys(SCALES).map((k) => [k, SCALE_LABELS[k]]), state.scaleName);
+  populateSelect(elTuning, Object.keys(TUNINGS).map((k) => [k, TUNING_LABELS[k]]), state.tuningKey);
+  elMode.addEventListener("change", () => {
+    state.mode = elMode.value;
+    updateModeUI();
+    render();
+  });
+  elRoot.addEventListener("change", () => {
+    state.rootName = elRoot.value;
+    render();
+  });
+  elChord.addEventListener("change", () => {
+    state.chordName = elChord.value;
+    render();
+  });
+  elScale.addEventListener("change", () => {
+    state.scaleName = elScale.value;
+    render();
+  });
+  elTuning.addEventListener("change", () => {
+    state.tuningKey = elTuning.value;
+    render();
+  });
+  elFlats.addEventListener("change", () => {
+    state.useFlats = elFlats.checked;
+    render();
+  });
+  elFrets.addEventListener("input", () => {
+    state.maxFret = parseInt(elFrets.value, 10);
+    elFretsLabel.textContent = state.maxFret;
+    render();
+  });
+  updateModeUI();
+  render();
+}
+document.addEventListener("DOMContentLoaded", init);
+
+  </script>
+</body>
+</html>
