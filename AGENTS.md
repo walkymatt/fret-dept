@@ -68,6 +68,23 @@ open index.html    # or just double-click it
 cloning without running `make bundle`, but it must be rebuilt whenever source
 files change.
 
+## Standalone build
+
+```bash
+make standalone    # produces guitar-standalone.html (~22 KB)
+```
+
+`guitar-standalone.html` is a **fully self-contained single file** — CSS and JS
+are inlined directly into the HTML by `scripts/build-standalone.py`. It has zero
+external references and can be opened from `file://`, served, emailed, or dropped
+into any folder without any supporting files.
+
+*This is the primary distribution target.* All new functionality should work
+within this constraint: no runtime network requests, no external fonts, no CDN
+dependencies, nothing that requires a server. If a future feature genuinely
+cannot work offline (e.g. fetching audio samples), that should be a conscious
+and documented exception rather than the default.
+
 ## Tests
 
 Source files are tested directly as ES modules (no bundle needed):
