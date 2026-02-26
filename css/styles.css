@@ -1,0 +1,235 @@
+/* ============================================================
+   Guitar — pure CSS, no external dependencies
+   ============================================================ */
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --bg:          #1a1a2e;
+  --surface:     #16213e;
+  --panel:       #0f3460;
+  --accent:      #e94560;
+  --accent2:     #f5a623;
+  --text:        #e0e0e0;
+  --text-dim:    #888;
+  --border:      #2a3a5c;
+  --radius:      10px;
+  --shadow:      0 4px 24px rgba(0,0,0,0.5);
+  --font-ui:     'Segoe UI', system-ui, sans-serif;
+  --font-mono:   'Courier New', monospace;
+  --fret-bg:     #f5e6c8;
+}
+
+html, body {
+  height: 100%;
+}
+
+body {
+  font-family: var(--font-ui);
+  background: var(--bg);
+  color: var(--text);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 100vh;
+  padding: 24px 16px 40px;
+}
+
+/* ---- Header ---- */
+
+header {
+  width: 100%;
+  max-width: 900px;
+  margin-bottom: 24px;
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+}
+
+header h1 {
+  font-size: 1.8rem;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  color: var(--accent2);
+}
+
+header p.subtitle {
+  color: var(--text-dim);
+  font-size: 0.9rem;
+}
+
+/* ---- Control panel ---- */
+
+.controls {
+  width: 100%;
+  max-width: 900px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px 24px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px 32px;
+  align-items: flex-end;
+  margin-bottom: 24px;
+  box-shadow: var(--shadow);
+}
+
+.control-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 140px;
+}
+
+.control-group label {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-dim);
+  font-weight: 600;
+}
+
+select, input[type="range"] {
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 7px 10px;
+  font-size: 0.9rem;
+  font-family: var(--font-ui);
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.15s;
+  appearance: auto;
+}
+
+select:hover, select:focus {
+  border-color: var(--accent2);
+}
+
+input[type="range"] {
+  padding: 4px 0;
+  accent-color: var(--accent2);
+  width: 100%;
+}
+
+.toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-bottom: 4px;
+}
+
+.toggle-row input[type="checkbox"] {
+  accent-color: var(--accent2);
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.toggle-row label {
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  cursor: pointer;
+  user-select: none;
+}
+
+/* ---- Display title ---- */
+
+.display-title-wrap {
+  width: 100%;
+  max-width: 900px;
+  margin-bottom: 12px;
+}
+
+#display-title {
+  font-size: 1.4rem;
+  font-weight: 600;
+  color: var(--accent2);
+  letter-spacing: -0.3px;
+}
+
+/* ---- Fretboard card ---- */
+
+.fretboard-card {
+  width: 100%;
+  max-width: 900px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px 20px 16px;
+  overflow-x: auto;
+  box-shadow: var(--shadow);
+  margin-bottom: 20px;
+}
+
+#fretboard {
+  display: block;
+  min-width: 600px;
+}
+
+#fretboard svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* ---- Legend ---- */
+
+.legend-card {
+  width: 100%;
+  max-width: 900px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 20px;
+  box-shadow: var(--shadow);
+}
+
+.legend-heading {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-dim);
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+
+#legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 20px;
+}
+
+.legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.88rem;
+}
+
+.legend-swatch {
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid rgba(255,255,255,0.15);
+  flex-shrink: 0;
+}
+
+.legend-label {
+  color: var(--text);
+}
+
+/* ---- Responsive ---- */
+
+@media (max-width: 640px) {
+  header h1 { font-size: 1.4rem; }
+  .controls { padding: 16px; gap: 16px; }
+  .fretboard-card { padding: 16px 12px 12px; }
+}
