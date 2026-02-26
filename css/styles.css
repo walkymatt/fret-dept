@@ -170,7 +170,7 @@ input[type="range"] {
 
 #fretboard {
   display: block;
-  min-width: 600px;
+  width: 100%;
 }
 
 #fretboard svg {

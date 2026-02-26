@@ -1,7 +1,7 @@
 # Guitar — Chords & Scales
 
-Pure client-side web app. No build step, no external dependencies.
-Open `index.html` directly in a browser (or serve with any static server).
+Pure client-side web app. Runtime has no external dependencies (pure JS/CSS/HTML).
+Requires one build step to produce `bundle.js` before opening in a browser.
 
 ## Architecture
 
@@ -47,13 +47,33 @@ Three cleanly separated modules in `js/`:
 - *New view*: import `findPositions` from `fretboard.js` and `renderFretboard`
   from `renderer.js`, add a new panel in `index.html`
 
-## Running
+## Build & run
+
+The source files (`js/*.js`) are ES modules with `import`/`export`. Browsers
+block cross-file ES module loads from `file://` URLs due to CORS, so they must
+be bundled into a single self-contained script first.
 
 ```bash
-# Any static file server works, e.g.:
-python3 -m http.server 8080
-# or:
-npx serve .
+# One-time (or after any source change): produces bundle.js
+make bundle        # runs: bun build js/app.js --outfile=bundle.js --target=browser
+
+# Build + serve on port 5050
+make serve
+
+# Open locally without a server (bundle.js must exist)
+open index.html    # or just double-click it
+```
+
+`bundle.js` is committed to the repo so the app can be opened immediately after
+cloning without running `make bundle`, but it must be rebuilt whenever source
+files change.
+
+## Tests
+
+Source files are tested directly as ES modules (no bundle needed):
+
+```bash
+make test    # runs: bun test tests/
 ```
 
 ## Future ideas

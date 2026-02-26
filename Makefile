@@ -1,17 +1,20 @@
-.PHONY: serve check clean
+.PHONY: bundle serve test check clean
 
-## Serve the app locally on port 8080
-serve:
-	python3 -m http.server 8080
+## Build bundle.js from ES module sources (required before opening index.html)
+bundle:
+	bun build js/app.js --outfile=bundle.js --target=browser
 
-## Basic sanity check — ensure JS files have no syntax errors
-check:
-	@echo "Checking JS syntax..."
-	@node --input-type=module < js/theory.js   && echo "  theory.js   OK"
-	@node --input-type=module < js/fretboard.js && echo "  fretboard.js OK"
-	@node --input-type=module < js/renderer.js  && echo "  renderer.js  OK"
-	@echo "All checks passed."
+## Run tests against the ES module source files
+test:
+	bun test
 
-## Remove any generated artefacts (nothing currently)
+## check = test (alias)
+check: test
+
+## Build then serve on port 5050
+serve: bundle
+	python3 -m http.server 5050
+
+## Remove generated bundle
 clean:
-	@echo "Nothing to clean."
+	rm -f bundle.js
