@@ -82,6 +82,22 @@
     <div id="legend"></div>
   </div>
 
+  <!-- Position navigator (chord mode only) -->
+  <div id="position-nav" class="position-nav-card" style="display:none">
+    <div class="pos-nav-header">
+      <span class="pos-nav-title">Positions</span>
+      <div class="pos-nav-controls">
+        <button id="pos-prev" class="pos-btn" aria-label="Previous position">&#9664;</button>
+        <span id="pos-label" class="pos-label"></span>
+        <button id="pos-next" class="pos-btn" aria-label="Next position">&#9654;</button>
+        <span id="pos-count" class="pos-count"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Voicing gallery (chord mode only) -->
+  <div id="voicing-gallery" class="voicing-gallery" style="display:none"></div>
+
   <!-- Single self-contained bundle: no import/export, works from file:// and HTTP -->
   <script src="bundle.js"></script>
 </body>

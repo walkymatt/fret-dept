@@ -105,3 +105,174 @@ export function findBoxVoicing(targetPcs, tuningSpec, windowStart = 0, windowSiz
 export function filterByFretRange(positions, minFret, maxFret) {
   return positions.filter(p => p.fret >= minFret && p.fret <= maxFret);
 }
+
+// ---------------------------------------------------------------------------
+// Voicing scoring & position discovery
+// ---------------------------------------------------------------------------
+
+/**
+ * Score a candidate voicing (array of 6 position-objects-or-null).
+ * Returns 0 if any chord tone is missing (hard gate).
+ * Higher scores = more playable / more complete voicings.
+ */
+export function scoreVoicing(voicing, targetPcs) {
+  const active = voicing.filter(v => v !== null);
+  if (active.length === 0) return 0;
+
+  // Hard gate: every chord tone must be represented.
+  const presentPcs = new Set(active.map(v => v.pc));
+  for (const pc of targetPcs) {
+    if (!presentPcs.has(pc)) return 0;
+  }
+
+  let score = 100 * targetPcs.length; // completeness base
+
+  // More strings = better
+  score += active.length * 10;
+
+  // Tighter fret span = better (open strings excluded from span calc)
+  const frettedFrets = active.filter(v => v.fret > 0).map(v => v.fret);
+  if (frettedFrets.length > 0) {
+    const span = Math.max(...frettedFrets) - Math.min(...frettedFrets);
+    if (span <= 3) score += 20;
+    else if (span <= 4) score += 10;
+  } else {
+    score += 20; // all open strings — ideal
+  }
+
+  // Root note on the lowest sounding string
+  const lowestIdx = voicing.findIndex(v => v !== null);
+  if (lowestIdx !== -1 && voicing[lowestIdx].degreeIndex === 0) {
+    score += 30;
+  }
+
+  // No muted strings buried in the middle of the voicing
+  let first = -1, last = -1;
+  for (let i = 0; i < voicing.length; i++) {
+    if (voicing[i] !== null) {
+      if (first === -1) first = i;
+      last = i;
+    }
+  }
+  let hasGap = false;
+  for (let i = first + 1; i < last; i++) {
+    if (voicing[i] === null) { hasGap = true; break; }
+  }
+  if (!hasGap) score += 10;
+
+  return score;
+}
+
+/**
+ * Find the best-scoring complete voicing within a fret window.
+ * Tries every combination of candidate notes (one per string, or mute).
+ * Returns null if no complete voicing exists in the window.
+ */
+export function findBestVoicingInWindow(targetPcs, tuningSpec, windowStart = 0, windowSize = 4) {
+  const map = buildFretboardMap(tuningSpec, windowStart + windowSize);
+
+  // Collect candidate notes per string (plus null = mute)
+  const candidates = map.map((stringFrets, strIdx) => {
+    const hits = [];
+    for (let fret = windowStart; fret <= windowStart + windowSize; fret++) {
+      if (fret >= stringFrets.length) break;
+      const pc = pitchClass(stringFrets[fret]);
+      const di = targetPcs.indexOf(pc);
+      if (di !== -1) {
+        hits.push({ string: strIdx + 1, fret, pc, degreeIndex: di });
+      }
+    }
+    return [null, ...hits]; // null = mute this string
+  });
+
+  let bestVoicing = null;
+  let bestScore   = 0;
+  const current   = new Array(6);
+
+  function recurse(strIdx) {
+    if (strIdx === 6) {
+      const score = scoreVoicing(current, targetPcs);
+      if (score > bestScore) {
+        bestScore   = score;
+        bestVoicing = [...current];
+      }
+      return;
+    }
+    for (const candidate of candidates[strIdx]) {
+      current[strIdx] = candidate;
+      recurse(strIdx + 1);
+    }
+  }
+
+  recurse(0);
+  return bestScore > 0 ? bestVoicing : null;
+}
+
+/**
+ * Slide a window across the neck and collect the best voicing at each
+ * distinct position.  Adjacent windows that produce identical fingerings
+ * are deduplicated.  Returns an array of:
+ *   { windowStart, voicing, score, cagedShape }
+ */
+export function findVoicingsAcrossNeck(targetPcs, tuningSpec, maxFret = 22, windowSize = 4) {
+  const results        = [];
+  let lastFingerprint  = null;
+
+  for (let ws = 0; ws <= maxFret - windowSize; ws++) {
+    const voicing = findBestVoicingInWindow(targetPcs, tuningSpec, ws, windowSize);
+    if (!voicing) continue;
+
+    const fingerprint = voicing.map(v => v ? String(v.fret) : 'x').join(',');
+    if (fingerprint === lastFingerprint) continue;
+    lastFingerprint = fingerprint;
+
+    const score     = scoreVoicing(voicing, targetPcs);
+    const cagedShape = identifyCagedShape(voicing);
+    results.push({ windowStart: ws, voicing, score, cagedShape });
+  }
+
+  return results;
+}
+
+/**
+ * Identify which CAGED shape a voicing corresponds to, based on which
+ * string carries the root (degreeIndex === 0) in the lowest position.
+ *
+ * Returns 'E' | 'A' | 'C' | 'D' | null.
+ * G shape is not distinguished from E shape (both have root on string 6)
+ * because auto-generated voicings rarely produce a clean G-shape barre
+ * and misidentifying an E-barre as G would be confusing.
+ */
+export function identifyCagedShape(voicing) {
+  // Find the lowest-string index that has the root
+  let rootStrIdx = -1;
+  for (let i = 0; i < voicing.length; i++) {
+    if (voicing[i] !== null && voicing[i].degreeIndex === 0) {
+      rootStrIdx = i;
+      break;
+    }
+  }
+
+  if (rootStrIdx === -1) return null;
+
+  // E shape: root on string 6 (strIdx 0, low E)
+  if (rootStrIdx === 0) return 'E';
+
+  // A or C shape: root on string 5 (strIdx 1, A), string 6 muted
+  if (rootStrIdx === 1 && voicing[0] === null) {
+    // A shape: D/G/B strings (strIdx 2-4) all at the same fret (barre-like)
+    const inner = [voicing[2], voicing[3], voicing[4]].filter(Boolean);
+    if (inner.length >= 2) {
+      const allSameFret = inner.every(v => v.fret === inner[0].fret);
+      return allSameFret ? 'A' : 'C';
+    }
+    return 'A'; // only 1 or 0 inner strings — default to A
+  }
+
+  // D shape: root on string 4 (strIdx 2, D), strings 6 & 5 muted
+  if (rootStrIdx === 2 && voicing[0] === null && voicing[1] === null) {
+    return 'D';
+  }
+
+  return null;
+}

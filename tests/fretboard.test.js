@@ -2,6 +2,8 @@ import { describe, it, expect } from 'bun:test';
 import {
   parseTuning, buildFretboardMap, findPositions,
   findBoxVoicing, filterByFretRange,
+  scoreVoicing, findBestVoicingInWindow,
+  findVoicingsAcrossNeck, identifyCagedShape,
   TUNINGS, TUNING_LABELS,
 } from '../js/fretboard.js';
 
@@ -78,4 +80,230 @@ describe('filterByFretRange()', () => {
   it('full set when range = full map', () => { const a=all(); expect(filterByFretRange(a,0,12).length).toBe(a.length); });
   it('endpoints inclusive',            () => { const a=all(),f=filterByFretRange(a,0,12); a.filter(p=>p.fret===0||p.fret===12).forEach(p=>expect(f).toContain(p)); });
   it('does not mutate input',          () => { const a=all(),len=a.length; filterByFretRange(a,3,7); expect(a.length).toBe(len); });
+});
+
+// ---------------------------------------------------------------------------
+// Helpers for voicing tests
+// ---------------------------------------------------------------------------
+
+// Build a minimal position object
+const pos = (strIdx, fret, pc, di) => ({ string: strIdx+1, fret, pc, degreeIndex: di });
+
+// C major pitch classes: C=0, E=4, G=7
+const C_PCS = [0, 4, 7];
+// E major pitch classes: E=4, G#=8, B=11
+const E_PCS = [4, 8, 11];
+// A major pitch classes: A=9, C#=1, E=4  (targetPcs order: root first)
+const A_PCS = [9, 1, 4];
+// D major pitch classes: D=2, F#=6, A=9
+const D_PCS = [2, 6, 9];
+
+// Hand-checked open voicings (x32010, x02220, xx0232, 022100)
+const C_OPEN_VOICING = [
+  null,
+  pos(1, 3, 0, 0),  // A string fret 3 = C, root
+  pos(2, 2, 4, 1),  // D string fret 2 = E
+  pos(3, 0, 7, 2),  // G string open   = G
+  pos(4, 1, 0, 0),  // B string fret 1 = C
+  pos(5, 0, 4, 1),  // high-e open     = E
+];
+
+const A_OPEN_VOICING = [
+  null,
+  pos(1, 0, 9, 0),  // A string open   = A, root
+  pos(2, 2, 4, 2),  // D string fret 2 = E
+  pos(3, 2, 9, 0),  // G string fret 2 = A
+  pos(4, 2, 1, 1),  // B string fret 2 = C#
+  pos(5, 0, 4, 2),  // high-e open     = E
+];
+
+const D_OPEN_VOICING = [
+  null,
+  null,
+  pos(2, 0, 2, 0),  // D string open   = D, root
+  pos(3, 2, 9, 2),  // G string fret 2 = A
+  pos(4, 3, 2, 0),  // B string fret 3 = D
+  pos(5, 2, 6, 1),  // high-e fret 2   = F#
+];
+
+const E_OPEN_VOICING = [
+  pos(0, 0, 4, 0),  // low-E open      = E, root
+  pos(1, 2, 11, 2), // A string fret 2 = B
+  pos(2, 2, 4, 0),  // D string fret 2 = E
+  pos(3, 1, 8, 1),  // G string fret 1 = G#
+  pos(4, 0, 11, 2), // B string open   = B
+  pos(5, 0, 4, 0),  // high-e open     = E
+];
+
+// ---------------------------------------------------------------------------
+
+describe('scoreVoicing()', () => {
+  it('empty voicing scores 0',          () => expect(scoreVoicing([null,null,null,null,null,null], C_PCS)).toBe(0));
+  it('missing chord tone scores 0',     () => {
+    // C and E present but no G
+    const v = [null, pos(1,3,0,0), pos(2,2,4,1), null, null, null];
+    expect(scoreVoicing(v, C_PCS)).toBe(0);
+  });
+  it('complete triad scores > 0',       () => expect(scoreVoicing(C_OPEN_VOICING, C_PCS)).toBeGreaterThan(0));
+  it('complete triad contains base',    () => expect(scoreVoicing(C_OPEN_VOICING, C_PCS)).toBeGreaterThanOrEqual(300));
+  it('more strings → higher score',    () => {
+    // 5-string vs 3-string, both complete
+    const v3 = [null, null, null, pos(3,0,7,2), pos(4,1,0,0), pos(5,0,4,1)];
+    // add root first so completeness still holds — actually v3 is missing root 0... let me add it
+    const v3c = [null, null, pos(2,2,4,1), pos(3,0,7,2), pos(4,1,0,0), null];
+    // still missing root → 0.  let me build a minimal 3-string complete voicing
+    const v3ok = [null, pos(1,3,0,0), pos(2,2,4,1), pos(3,0,7,2), null, null];
+    expect(scoreVoicing(C_OPEN_VOICING, C_PCS)).toBeGreaterThan(scoreVoicing(v3ok, C_PCS));
+  });
+  it('root on lowest string gives bonus', () => {
+    // Swap C_OPEN_VOICING to have non-root on lowest sounding string (strIdx 1 has 3rd instead of root)
+    const noRootBass = [
+      null,
+      pos(1, 2, 4, 1),  // E (3rd) on A string instead of root C
+      pos(2, 3, 0, 0),  // C (root) on D string
+      pos(3, 0, 7, 2),
+      pos(4, 1, 0, 0),
+      pos(5, 0, 4, 1),
+    ];
+    expect(scoreVoicing(C_OPEN_VOICING, C_PCS)).toBeGreaterThan(scoreVoicing(noRootBass, C_PCS));
+  });
+  it('voicing with gap scores less', () => {
+    // Same notes as C_OPEN but with a null gap in the middle
+    const gapped = [
+      null,
+      pos(1, 3, 0, 0),
+      null,              // gap
+      pos(3, 0, 7, 2),
+      pos(4, 1, 0, 0),
+      pos(5, 0, 4, 1),
+    ];
+    expect(scoreVoicing(C_OPEN_VOICING, C_PCS)).toBeGreaterThan(scoreVoicing(gapped, C_PCS));
+  });
+});
+
+describe('findBestVoicingInWindow()', () => {
+  it('returns array of 6',              () => expect(findBestVoicingInWindow(C_PCS,STD,0,4).length).toBe(6));
+  it('C major open has all 3 pcs',      () => {
+    const v = findBestVoicingInWindow(C_PCS, STD, 0, 4);
+    const pcs = new Set(v.filter(Boolean).map(x => x.pc));
+    expect(pcs.has(0)).toBe(true);
+    expect(pcs.has(4)).toBe(true);
+    expect(pcs.has(7)).toBe(true);
+  });
+  it('non-null pcs are in targetPcs',   () => {
+    const v = findBestVoicingInWindow(C_PCS, STD, 0, 4);
+    v.filter(Boolean).forEach(x => expect(C_PCS).toContain(x.pc));
+  });
+  it('frets in window',                 () => {
+    const v = findBestVoicingInWindow(C_PCS, STD, 5, 4);
+    v.filter(Boolean).forEach(x => { expect(x.fret).toBeGreaterThanOrEqual(5); expect(x.fret).toBeLessThanOrEqual(9); });
+  });
+  it('returns null when unreachable',   () => {
+    // Window frets 1–5 for a chord whose pcs don't all appear there
+    // Use a single-note "chord" that only appears at fret 0 (open E)
+    // With windowStart=1 those open strings are excluded
+    const v = findBestVoicingInWindow([4], STD, 13, 4); // E at frets 13–17
+    // E appears at fret 14 on B string (64+14-1... let me not assume) — just check it's valid or null
+    // Actually E (pc4) does appear in frets 13-17, so this won't be null.
+    // Instead use an impossible combo: all six pcs that can't all appear in 1-fret window
+    expect(findBestVoicingInWindow([0,1,2,3,4,5,6], STD, 1, 1)).toBeNull();
+  });
+  it('score of result is positive',     () => {
+    const v = findBestVoicingInWindow(C_PCS, STD, 0, 4);
+    expect(scoreVoicing(v, C_PCS)).toBeGreaterThan(0);
+  });
+  it('G major open has all 3 pcs',      () => {
+    const G_PCS = [7, 11, 2]; // G, B, D
+    const v = findBestVoicingInWindow(G_PCS, STD, 0, 4);
+    const pcs = new Set(v.filter(Boolean).map(x => x.pc));
+    expect(pcs.has(7)).toBe(true);
+    expect(pcs.has(11)).toBe(true);
+    expect(pcs.has(2)).toBe(true);
+  });
+  it('A minor open has all 3 pcs',      () => {
+    const Am_PCS = [9, 0, 4]; // A, C, E  (minor: root, b3, 5)
+    const v = findBestVoicingInWindow(Am_PCS, STD, 0, 4);
+    const pcs = new Set(v.filter(Boolean).map(x => x.pc));
+    [9, 0, 4].forEach(pc => expect(pcs.has(pc)).toBe(true));
+  });
+});
+
+describe('findVoicingsAcrossNeck()', () => {
+  it('returns an array',                () => expect(Array.isArray(findVoicingsAcrossNeck(C_PCS, STD))).toBe(true));
+  it('C major has 4+ voicings',         () => expect(findVoicingsAcrossNeck(C_PCS, STD, 22, 4).length).toBeGreaterThanOrEqual(4));
+  it('E major has 4+ voicings',         () => expect(findVoicingsAcrossNeck(E_PCS, STD, 22, 4).length).toBeGreaterThanOrEqual(4));
+  it('each voicing contains all pcs',   () => {
+    findVoicingsAcrossNeck(C_PCS, STD, 22, 4).forEach(({ voicing }) => {
+      const pcs = new Set(voicing.filter(Boolean).map(v => v.pc));
+      C_PCS.forEach(pc => expect(pcs.has(pc)).toBe(true));
+    });
+  });
+  it('windowStarts are ascending',      () => {
+    const results = findVoicingsAcrossNeck(C_PCS, STD, 22, 4);
+    for (let i = 1; i < results.length; i++) {
+      expect(results[i].windowStart).toBeGreaterThan(results[i-1].windowStart);
+    }
+  });
+  it('no duplicate fingerings',         () => {
+    const results = findVoicingsAcrossNeck(C_PCS, STD, 22, 4);
+    const fps = results.map(r => r.voicing.map(v => v ? v.fret : 'x').join(','));
+    expect(new Set(fps).size).toBe(fps.length);
+  });
+  it('each result has score > 0',       () => {
+    findVoicingsAcrossNeck(C_PCS, STD, 22, 4).forEach(r => expect(r.score).toBeGreaterThan(0));
+  });
+  it('cagedShape is string or null',    () => {
+    findVoicingsAcrossNeck(C_PCS, STD, 22, 4).forEach(r => {
+      expect(r.cagedShape === null || typeof r.cagedShape === 'string').toBe(true);
+    });
+  });
+  it('diminished chord has voicings',   () => {
+    const dim = [0, 3, 6]; // C diminished
+    expect(findVoicingsAcrossNeck(dim, STD, 22, 4).length).toBeGreaterThanOrEqual(2);
+  });
+});
+
+describe('identifyCagedShape()', () => {
+  it('E major open → E',   () => expect(identifyCagedShape(E_OPEN_VOICING)).toBe('E'));
+  it('A major open → A',   () => expect(identifyCagedShape(A_OPEN_VOICING)).toBe('A'));
+  it('C major open → C',   () => expect(identifyCagedShape(C_OPEN_VOICING)).toBe('C'));
+  it('D major open → D',   () => expect(identifyCagedShape(D_OPEN_VOICING)).toBe('D'));
+  it('no root → null',      () => {
+    // Voicing where no note has degreeIndex 0
+    const v = [null, pos(1,2,4,1), pos(2,0,7,2), null, null, null];
+    expect(identifyCagedShape(v)).toBe(null);
+  });
+  it('root on strIdx 0 → E regardless of other strings', () => {
+    const v = [pos(0,5,9,0), null, null, null, null, null];
+    expect(identifyCagedShape(v)).toBe('E');
+  });
+  it('A shape: root on strIdx 1, string 0 muted, inner strings same fret → A', () => {
+    // Simulate A-shape barre at fret 7 for E major (root E = pc 4)
+    const v = [
+      null,
+      pos(1, 7, 4, 0),  // root on A string fret 7
+      pos(2, 9, 11, 2), // fret 9
+      pos(3, 9, 4, 0),  // fret 9
+      pos(4, 9, 8, 1),  // fret 9
+      null,
+    ];
+    expect(identifyCagedShape(v)).toBe('A');
+  });
+  it('C shape: root on strIdx 1, string 0 muted, inner strings diff frets → C', () => {
+    expect(identifyCagedShape(C_OPEN_VOICING)).toBe('C');
+  });
+  it('D shape: root on strIdx 2, strings 0&1 muted → D', () => {
+    expect(identifyCagedShape(D_OPEN_VOICING)).toBe('D');
+  });
+  it('root on strIdx 1 but string 0 not muted → null', () => {
+    const v = [
+      pos(0, 0, 4, 2),  // low E has a non-root note (5th)
+      pos(1, 3, 0, 0),  // root on A string
+      pos(2, 2, 4, 1),
+      pos(3, 0, 7, 2),
+      null,
+      null,
+    ];
+    expect(identifyCagedShape(v)).toBe(null);
+  });
 });
