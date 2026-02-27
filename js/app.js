@@ -60,7 +60,18 @@ function render() {
   const positions = findPositions(pitchClasses, tuning, state.maxFret);
   const noteNames = pitchClasses.map(pc => pcToName(pc, state.useFlats));
 
-  renderFretboard(document.getElementById('fretboard'), positions, degrees, { maxFret: state.maxFret });
+  // Build activeKeys from the selected voicing so the fretboard can ring
+  // those specific dots, while still showing every chord-note position.
+  let activeKeys;
+  if (state.mode === 'chord' && state.voicings.length > 0) {
+    const voicing = state.voicings[state.positionIndex]?.voicing ?? [];
+    activeKeys = new Set(
+      voicing.filter(Boolean).map(v => `${v.string}:${v.fret}`)
+    );
+  }
+
+  renderFretboard(document.getElementById('fretboard'), positions, degrees,
+    { maxFret: state.maxFret, activeKeys });
   renderLegend(document.getElementById('legend'), degrees, noteNames);
   document.getElementById('display-title').textContent = displayTitle;
 }
@@ -132,6 +143,7 @@ function renderPositionNav() {
     card.appendChild(lbl);
     card.addEventListener('click', () => {
       state.positionIndex = idx;
+      render();
       renderPositionNav();
     });
 
@@ -204,10 +216,10 @@ function init() {
 
   // Position navigator buttons
   document.getElementById('pos-prev').addEventListener('click', () => {
-    if (state.positionIndex > 0) { state.positionIndex--; renderPositionNav(); }
+    if (state.positionIndex > 0) { state.positionIndex--; render(); renderPositionNav(); }
   });
   document.getElementById('pos-next').addEventListener('click', () => {
-    if (state.positionIndex < state.voicings.length - 1) { state.positionIndex++; renderPositionNav(); }
+    if (state.positionIndex < state.voicings.length - 1) { state.positionIndex++; render(); renderPositionNav(); }
   });
 
   updateModeUI();

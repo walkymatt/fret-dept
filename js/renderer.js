@@ -147,11 +147,21 @@ export function renderFretboard(container, positions, degreeLabels = [], opts = 
     }
   });
 
+  // activeKeys: Set of "string:fret" strings marking the selected voicing.
+  // Active positions receive a gold highlight ring drawn behind the dot.
+  const activeKeys = cfg.activeKeys instanceof Set ? cfg.activeKeys : new Set();
+  const activeRingColor = cfg.activeRingColor ?? '#f5a623';
+
   // Open-string dots (left of nut)
   openByString.forEach((pos, strNum) => {
-    const x     = cfg.marginLeft - cfg.nutWidth - cfg.openDotRadius - 4;
-    const y     = stringY(strNum - 1, strCount, cfg);
-    const color = degreeColor(pos.degreeIndex, cfg);
+    const x      = cfg.marginLeft - cfg.nutWidth - cfg.openDotRadius - 4;
+    const y      = stringY(strNum - 1, strCount, cfg);
+    const color  = degreeColor(pos.degreeIndex, cfg);
+    const active = activeKeys.has(`${pos.string}:${pos.fret}`);
+    if (active) {
+      svgCircle(svg, x, y, cfg.openDotRadius + 5,
+        { fill: 'none', stroke: activeRingColor, 'stroke-width': 2.5 });
+    }
     svgCircle(svg, x, y, cfg.openDotRadius,
       { fill: color, stroke: '#fff', 'stroke-width': 1.5 });
     svgText(svg, x, y, degreeLabels[pos.degreeIndex] ?? '',
@@ -162,9 +172,14 @@ export function renderFretboard(container, positions, degreeLabels = [], opts = 
 
   // Fretted dots
   fretted.forEach(pos => {
-    const x     = cfg.marginLeft + (pos.fret - 0.5) * cfg.fretWidth;
-    const y     = stringY(pos.string - 1, strCount, cfg);
-    const color = degreeColor(pos.degreeIndex, cfg);
+    const x      = cfg.marginLeft + (pos.fret - 0.5) * cfg.fretWidth;
+    const y      = stringY(pos.string - 1, strCount, cfg);
+    const color  = degreeColor(pos.degreeIndex, cfg);
+    const active = activeKeys.has(`${pos.string}:${pos.fret}`);
+    if (active) {
+      svgCircle(svg, x, y, cfg.dotRadius + 5,
+        { fill: 'none', stroke: activeRingColor, 'stroke-width': 2.5 });
+    }
     svgCircle(svg, x, y, cfg.dotRadius,
       { fill: color, stroke: '#fff', 'stroke-width': 1.5 });
     svgText(svg, x, y, degreeLabels[pos.degreeIndex] ?? '',

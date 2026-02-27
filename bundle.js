@@ -442,10 +442,16 @@ function renderFretboard(container, positions, degreeLabels = [], opts = {}) {
       fretted.push(pos);
     }
   });
+  const activeKeys = cfg.activeKeys instanceof Set ? cfg.activeKeys : new Set;
+  const activeRingColor = cfg.activeRingColor ?? "#f5a623";
   openByString.forEach((pos, strNum) => {
     const x = cfg.marginLeft - cfg.nutWidth - cfg.openDotRadius - 4;
     const y = stringY(strNum - 1, strCount, cfg);
     const color = degreeColor(pos.degreeIndex, cfg);
+    const active = activeKeys.has(`${pos.string}:${pos.fret}`);
+    if (active) {
+      svgCircle(svg, x, y, cfg.openDotRadius + 5, { fill: "none", stroke: activeRingColor, "stroke-width": 2.5 });
+    }
     svgCircle(svg, x, y, cfg.openDotRadius, { fill: color, stroke: "#fff", "stroke-width": 1.5 });
     svgText(svg, x, y, degreeLabels[pos.degreeIndex] ?? "", {
       "text-anchor": "middle",
@@ -460,6 +466,10 @@ function renderFretboard(container, positions, degreeLabels = [], opts = {}) {
     const x = cfg.marginLeft + (pos.fret - 0.5) * cfg.fretWidth;
     const y = stringY(pos.string - 1, strCount, cfg);
     const color = degreeColor(pos.degreeIndex, cfg);
+    const active = activeKeys.has(`${pos.string}:${pos.fret}`);
+    if (active) {
+      svgCircle(svg, x, y, cfg.dotRadius + 5, { fill: "none", stroke: activeRingColor, "stroke-width": 2.5 });
+    }
     svgCircle(svg, x, y, cfg.dotRadius, { fill: color, stroke: "#fff", "stroke-width": 1.5 });
     svgText(svg, x, y, degreeLabels[pos.degreeIndex] ?? "", {
       "text-anchor": "middle",
@@ -610,7 +620,12 @@ function render() {
   const { tuning, pitchClasses, degrees, displayTitle } = getChordScaleData();
   const positions = findPositions(pitchClasses, tuning, state.maxFret);
   const noteNames = pitchClasses.map((pc) => pcToName(pc, state.useFlats));
-  renderFretboard(document.getElementById("fretboard"), positions, degrees, { maxFret: state.maxFret });
+  let activeKeys;
+  if (state.mode === "chord" && state.voicings.length > 0) {
+    const voicing = state.voicings[state.positionIndex]?.voicing ?? [];
+    activeKeys = new Set(voicing.filter(Boolean).map((v) => `${v.string}:${v.fret}`));
+  }
+  renderFretboard(document.getElementById("fretboard"), positions, degrees, { maxFret: state.maxFret, activeKeys });
   renderLegend(document.getElementById("legend"), degrees, noteNames);
   document.getElementById("display-title").textContent = displayTitle;
 }
@@ -665,6 +680,7 @@ function renderPositionNav() {
     card.appendChild(lbl);
     card.addEventListener("click", () => {
       state.positionIndex = idx;
+      render();
       renderPositionNav();
     });
     galleryEl.appendChild(card);
@@ -743,12 +759,14 @@ function init() {
   document.getElementById("pos-prev").addEventListener("click", () => {
     if (state.positionIndex > 0) {
       state.positionIndex--;
+      render();
       renderPositionNav();
     }
   });
   document.getElementById("pos-next").addEventListener("click", () => {
     if (state.positionIndex < state.voicings.length - 1) {
       state.positionIndex++;
+      render();
       renderPositionNav();
     }
   });
