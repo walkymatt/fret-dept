@@ -333,9 +333,9 @@ var DEFAULTS = {
   marginTop: 40,
   marginLeft: 60,
   marginRight: 28,
-  marginBottom: 32,
+  marginBottom: 48,
   fretWidth: 56,
-  stringSpacing: 28,
+  stringSpacing: 36,
   dotRadius: 11,
   nutWidth: 6,
   fretLineWidth: 1.5,
@@ -452,6 +452,7 @@ function renderFretboard(container, positions, degreeLabels = [], opts = {}) {
     const color = degreeColor(pos.degreeIndex, cfg);
     const active = activeKeys.has(`${pos.string}:${pos.fret}`);
     if (active) {
+      svgCircle(svg, x, y, cfg.openDotRadius + 7, { fill: cfg.fretboardColor, stroke: "none" });
       svgCircle(svg, x, y, cfg.openDotRadius + 5, { fill: "none", stroke: activeRingColor, "stroke-width": 2.5 });
     }
     svgCircle(svg, x, y, cfg.openDotRadius, { fill: color, stroke: "#000", "stroke-width": 1.5 });
@@ -470,6 +471,7 @@ function renderFretboard(container, positions, degreeLabels = [], opts = {}) {
     const color = degreeColor(pos.degreeIndex, cfg);
     const active = activeKeys.has(`${pos.string}:${pos.fret}`);
     if (active) {
+      svgCircle(svg, x, y, cfg.dotRadius + 7, { fill: cfg.fretboardColor, stroke: "none" });
       svgCircle(svg, x, y, cfg.dotRadius + 5, { fill: "none", stroke: activeRingColor, "stroke-width": 2.5 });
     }
     svgCircle(svg, x, y, cfg.dotRadius, { fill: color, stroke: "#000", "stroke-width": 1.5 });
