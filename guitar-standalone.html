@@ -326,14 +326,14 @@ input[type="range"] {
   scroll-snap-type: x mandatory;
   -webkit-overflow-scrolling: touch;
   padding-bottom: 6px;
-  min-height: 180px;     /* never collapse below one card row */
+  min-height: 290px;     /* never collapse below one card row */
   flex-shrink: 0;
 }
 
 .voicing-card {
   flex: 0 0 calc(33.333% - 8px);
   min-width: 0;
-  min-height: 160px;     /* keep card visible even if SVG struggles */
+  min-height: 250px;     /* keep card visible even if SVG struggles */
   background: var(--surface);
   border: 2px solid var(--border);
   border-radius: var(--radius);
@@ -349,7 +349,7 @@ input[type="range"] {
 }
 
 .voicing-diagram {
-  min-height: 120px;
+  min-height: 200px;
   width: 100%;
   display: flex;
   align-items: center;
@@ -977,14 +977,14 @@ function renderChordDiagram(container, voicing, degreeLabels = [], opts = {}) {
   const cfg = Object.assign({}, DEFAULTS, opts);
   const STRINGS = 6;
   const FRETS = 4;
-  const FW = 26;
-  const SS = 11;
-  const DR = 6;
-  const NW = 4;
-  const mTop = 6;
-  const mLeft = 18;
-  const mRight = 5;
-  const mBottom = 14;
+  const FW = 28;
+  const SS = 17;
+  const DR = 7;
+  const NW = 5;
+  const mTop = 20;
+  const mLeft = 22;
+  const mRight = 6;
+  const mBottom = 18;
   const boardW = FRETS * FW;
   const boardH = (STRINGS - 1) * SS;
   const svgW = mLeft + boardW + mRight;

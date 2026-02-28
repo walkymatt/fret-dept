@@ -319,14 +319,14 @@ input[type="range"] {
   scroll-snap-type: x mandatory;
   -webkit-overflow-scrolling: touch;
   padding-bottom: 6px;
-  min-height: 180px;     /* never collapse below one card row */
+  min-height: 290px;     /* never collapse below one card row */
   flex-shrink: 0;
 }
 
 .voicing-card {
   flex: 0 0 calc(33.333% - 8px);
   min-width: 0;
-  min-height: 160px;     /* keep card visible even if SVG struggles */
+  min-height: 250px;     /* keep card visible even if SVG struggles */
   background: var(--surface);
   border: 2px solid var(--border);
   border-radius: var(--radius);
@@ -342,7 +342,7 @@ input[type="range"] {
 }
 
 .voicing-diagram {
-  min-height: 120px;
+  min-height: 200px;
   width: 100%;
   display: flex;
   align-items: center;
