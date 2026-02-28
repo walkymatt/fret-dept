@@ -401,19 +401,10 @@ input[type="range"] {
       <select id="sel-tuning"></select>
     </div>
 
-    <!-- Fret range -->
-    <div class="control-group">
-      <label for="sel-frets">Show up to fret <span id="frets-label">12</span></label>
-      <input type="range" id="sel-frets" min="5" max="24" value="12" step="1">
-    </div>
-
-    <!-- Flat/sharp toggle -->
-    <div class="control-group">
-      <label>&nbsp;</label>
-      <div class="toggle-row">
-        <input type="checkbox" id="toggle-flats">
-        <label for="toggle-flats">Use ♭ spellings</label>
-      </div>
+    <!-- Inversion / slash chord (chord mode only) -->
+    <div class="control-group" id="inversion-row">
+      <label for="sel-inversion">Inversion</label>
+      <select id="sel-inversion"></select>
     </div>
 
   </section>
@@ -786,9 +777,9 @@ var DEFAULTS = {
   marginTop: 40,
   marginLeft: 60,
   marginRight: 28,
-  marginBottom: 48,
+  marginBottom: 56,
   fretWidth: 56,
-  stringSpacing: 36,
+  stringSpacing: 40,
   dotRadius: 11,
   nutWidth: 6,
   fretLineWidth: 1.5,
@@ -879,7 +870,7 @@ function renderFretboard(container, positions, degreeLabels = [], opts = {}) {
     svgLine(svg, cfg.marginLeft, y, cfg.marginLeft + boardWidth, y, { stroke: cfg.stringColor, "stroke-width": thickness });
   }
   for (let f = 1;f <= fretCount; f++) {
-    svgText(svg, cfg.marginLeft + (f - 0.5) * cfg.fretWidth, cfg.marginTop + boardHeight + 20, String(f), {
+    svgText(svg, cfg.marginLeft + (f - 0.5) * cfg.fretWidth, cfg.marginTop + boardHeight + Math.round(cfg.marginBottom / 2), String(f), {
       "text-anchor": "middle",
       "dominant-baseline": "middle",
       "font-size": "11",
@@ -905,7 +896,7 @@ function renderFretboard(container, positions, degreeLabels = [], opts = {}) {
     const color = degreeColor(pos.degreeIndex, cfg);
     const active = activeKeys.has(`${pos.string}:${pos.fret}`);
     if (active) {
-      svgCircle(svg, x, y, cfg.openDotRadius + 7, { fill: cfg.fretboardColor, stroke: "none" });
+      svgCircle(svg, x, y, cfg.openDotRadius + 5, { fill: cfg.fretboardColor, stroke: "none" });
       svgCircle(svg, x, y, cfg.openDotRadius + 5, { fill: "none", stroke: activeRingColor, "stroke-width": 2.5 });
     }
     svgCircle(svg, x, y, cfg.openDotRadius, { fill: color, stroke: "#000", "stroke-width": 1.5 });
@@ -924,7 +915,7 @@ function renderFretboard(container, positions, degreeLabels = [], opts = {}) {
     const color = degreeColor(pos.degreeIndex, cfg);
     const active = activeKeys.has(`${pos.string}:${pos.fret}`);
     if (active) {
-      svgCircle(svg, x, y, cfg.dotRadius + 7, { fill: cfg.fretboardColor, stroke: "none" });
+      svgCircle(svg, x, y, cfg.dotRadius + 5, { fill: cfg.fretboardColor, stroke: "none" });
       svgCircle(svg, x, y, cfg.dotRadius + 5, { fill: "none", stroke: activeRingColor, "stroke-width": 2.5 });
     }
     svgCircle(svg, x, y, cfg.dotRadius, { fill: color, stroke: "#000", "stroke-width": 1.5 });
@@ -951,7 +942,7 @@ function renderChordDiagram(container, voicing, degreeLabels = [], opts = {}) {
   const mTop = 20;
   const mLeft = 22;
   const mRight = 6;
-  const mBottom = 18;
+  const mBottom = 24;
   const boardW = FRETS * FW;
   const boardH = (STRINGS - 1) * SS;
   const svgW = mLeft + boardW + mRight;
@@ -1056,17 +1047,28 @@ function renderLegend(container, degreeLabels, noteNames = [], opts = {}) {
 }
 
 // js/app.js
+var FRETBOARD_FRETS = 12;
+var VOICING_FRETS = 22;
 var state = {
   mode: "chord",
   rootName: "C",
   chordName: "major",
   scaleName: "major",
   tuningKey: "standard",
-  maxFret: 12,
-  useFlats: false,
+  inversion: 0,
   positionIndex: 0,
   voicings: []
 };
+function useFlats() {
+  return state.rootName.includes("b");
+}
+function getVoicingBassPc(voicing, tuning) {
+  const played = voicing.filter(Boolean).sort((a, b) => a.string - b.string);
+  if (played.length === 0)
+    return null;
+  const bass = played[0];
+  return (tuning[bass.string - 1] + bass.fret) % 12;
+}
 function getChordScaleData() {
   const rootPc = nameToPc(state.rootName);
   const tuning = TUNINGS[state.tuningKey];
@@ -1074,6 +1076,10 @@ function getChordScaleData() {
   if (state.mode === "chord") {
     ({ pitchClasses, degrees } = getChordPitchClasses(rootPc, state.chordName));
     displayTitle = `${state.rootName} ${CHORD_LABELS[state.chordName]}`;
+    if (state.inversion > 0 && state.inversion < pitchClasses.length) {
+      const bassName = pcToName(pitchClasses[state.inversion], useFlats());
+      displayTitle += ` / ${bassName}`;
+    }
   } else {
     pitchClasses = getScalePitchClasses(rootPc, state.scaleName);
     degrees = pitchClasses.map((_, i) => String(i + 1));
@@ -1084,14 +1090,14 @@ function getChordScaleData() {
 function render() {
   try {
     const { tuning, pitchClasses, degrees, displayTitle } = getChordScaleData();
-    const positions = findPositions(pitchClasses, tuning, state.maxFret);
-    const noteNames = pitchClasses.map((pc) => pcToName(pc, state.useFlats));
+    const positions = findPositions(pitchClasses, tuning, FRETBOARD_FRETS);
+    const noteNames = pitchClasses.map((pc) => pcToName(pc, useFlats()));
     let activeKeys;
     if (state.mode === "chord" && state.voicings.length > 0) {
       const voicing = state.voicings[state.positionIndex]?.voicing ?? [];
       activeKeys = new Set(voicing.filter(Boolean).map((v) => `${v.string}:${v.fret}`));
     }
-    renderFretboard(document.getElementById("fretboard"), positions, degrees, { maxFret: state.maxFret, activeKeys });
+    renderFretboard(document.getElementById("fretboard"), positions, degrees, { maxFret: FRETBOARD_FRETS, activeKeys });
     renderLegend(document.getElementById("legend"), degrees, noteNames);
     document.getElementById("display-title").textContent = displayTitle;
   } catch (e) {
@@ -1105,9 +1111,39 @@ function computeVoicings() {
     return;
   }
   const { pitchClasses, tuning } = getChordScaleData();
-  state.voicings = findVoicingsAcrossNeck(pitchClasses, tuning, 22, 4);
+  const all = findVoicingsAcrossNeck(pitchClasses, tuning, VOICING_FRETS, 4);
+  if (state.inversion > 0 && state.inversion < pitchClasses.length) {
+    const targetBass = pitchClasses[state.inversion];
+    const filtered = all.filter((v) => getVoicingBassPc(v.voicing, tuning) === targetBass);
+    state.voicings = filtered.length > 0 ? filtered : all;
+  } else {
+    const rootBass = all.filter((v) => getVoicingBassPc(v.voicing, tuning) === pitchClasses[0]);
+    state.voicings = rootBass.length > 0 ? rootBass : all;
+  }
   if (state.positionIndex >= state.voicings.length)
     state.positionIndex = 0;
+}
+function populateInversionSelect() {
+  const el = document.getElementById("sel-inversion");
+  if (!el)
+    return;
+  const { pitchClasses } = getChordScaleData();
+  const flat = useFlats();
+  const ordinals = ["Root pos.", "1st inv.", "2nd inv.", "3rd inv.", "4th inv."];
+  el.innerHTML = "";
+  pitchClasses.forEach((pc, i) => {
+    const opt = document.createElement("option");
+    opt.value = i;
+    if (i === 0) {
+      opt.textContent = "Root pos.";
+    } else {
+      const bassName = pcToName(pc, flat);
+      opt.textContent = `${ordinals[i]} (${state.rootName}/${bassName})`;
+    }
+    if (i === state.inversion)
+      opt.selected = true;
+    el.appendChild(opt);
+  });
 }
 function renderPositionNav(scrollToActive = false) {
   const navEl = document.getElementById("position-nav");
@@ -1163,6 +1199,7 @@ function fullChordRefresh() {
     console.error("computeVoicings failed:", e);
     state.voicings = [];
   }
+  populateInversionSelect();
   render();
   setTimeout(renderPositionNav, 0);
 }
@@ -1178,8 +1215,10 @@ function populateSelect(el, entries, selected) {
   }
 }
 function updateModeUI() {
-  document.getElementById("chord-row").style.display = state.mode === "chord" ? "" : "none";
-  document.getElementById("scale-row").style.display = state.mode === "scale" ? "" : "none";
+  const isChord = state.mode === "chord";
+  document.getElementById("chord-row").style.display = isChord ? "" : "none";
+  document.getElementById("scale-row").style.display = isChord ? "none" : "";
+  document.getElementById("inversion-row").style.display = isChord ? "" : "none";
 }
 function init() {
   const elMode = document.getElementById("sel-mode");
@@ -1187,9 +1226,7 @@ function init() {
   const elChord = document.getElementById("sel-chord");
   const elScale = document.getElementById("sel-scale");
   const elTuning = document.getElementById("sel-tuning");
-  const elFlats = document.getElementById("toggle-flats");
-  const elFrets = document.getElementById("sel-frets");
-  const elFretsLabel = document.getElementById("frets-label");
+  const elInversion = document.getElementById("sel-inversion");
   populateSelect(elRoot, NOTE_NAMES_SHARP.map((n) => [n, n]), state.rootName);
   populateSelect(elChord, Object.keys(CHORDS).map((k) => [k, CHORD_LABELS[k]]), state.chordName);
   populateSelect(elScale, Object.keys(SCALES).map((k) => [k, SCALE_LABELS[k]]), state.scaleName);
@@ -1202,11 +1239,13 @@ function init() {
   });
   elRoot.addEventListener("change", () => {
     state.rootName = elRoot.value;
+    state.inversion = 0;
     state.positionIndex = 0;
     fullChordRefresh();
   });
   elChord.addEventListener("change", () => {
     state.chordName = elChord.value;
+    state.inversion = 0;
     state.positionIndex = 0;
     fullChordRefresh();
   });
@@ -1219,14 +1258,17 @@ function init() {
     state.positionIndex = 0;
     fullChordRefresh();
   });
-  elFlats.addEventListener("change", () => {
-    state.useFlats = elFlats.checked;
+  elInversion.addEventListener("change", () => {
+    state.inversion = parseInt(elInversion.value, 10);
+    state.positionIndex = 0;
+    try {
+      computeVoicings();
+    } catch (e) {
+      console.error("computeVoicings failed:", e);
+      state.voicings = [];
+    }
     render();
-  });
-  elFrets.addEventListener("input", () => {
-    state.maxFret = parseInt(elFrets.value, 10);
-    elFretsLabel.textContent = state.maxFret;
-    render();
+    setTimeout(renderPositionNav, 0);
   });
   document.getElementById("pos-prev").addEventListener("click", () => {
     if (state.positionIndex > 0) {

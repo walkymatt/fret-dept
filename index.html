@@ -49,19 +49,10 @@
       <select id="sel-tuning"></select>
     </div>
 
-    <!-- Fret range -->
-    <div class="control-group">
-      <label for="sel-frets">Show up to fret <span id="frets-label">12</span></label>
-      <input type="range" id="sel-frets" min="5" max="24" value="12" step="1">
-    </div>
-
-    <!-- Flat/sharp toggle -->
-    <div class="control-group">
-      <label>&nbsp;</label>
-      <div class="toggle-row">
-        <input type="checkbox" id="toggle-flats">
-        <label for="toggle-flats">Use ♭ spellings</label>
-      </div>
+    <!-- Inversion / slash chord (chord mode only) -->
+    <div class="control-group" id="inversion-row">
+      <label for="sel-inversion">Inversion</label>
+      <select id="sel-inversion"></select>
     </div>
 
   </section>

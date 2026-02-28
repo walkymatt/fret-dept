@@ -17,17 +17,38 @@ import {
 
 import { renderFretboard, renderLegend, renderChordDiagram } from './renderer.js';
 
+const FRETBOARD_FRETS = 12;   // fixed display depth
+const VOICING_FRETS   = 22;   // search depth for voicings
+
 const state = {
-  mode:           'chord',
-  rootName:       'C',
-  chordName:      'major',
-  scaleName:      'major',
-  tuningKey:      'standard',
-  maxFret:        12,
-  useFlats:       false,
-  positionIndex:  0,     // index into voicings[] currently shown in gallery
-  voicings:       [],    // computed by findVoicingsAcrossNeck in chord mode
+  mode:          'chord',
+  rootName:      'C',
+  chordName:     'major',
+  scaleName:     'major',
+  tuningKey:     'standard',
+  inversion:     0,     // 0 = root position, 1 = 1st inversion, etc.
+  positionIndex: 0,     // index into voicings[] shown in gallery
+  voicings:      [],    // computed by findVoicingsAcrossNeck in chord mode
 };
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+/** Prefer flat spellings when the root note name contains 'b'. */
+function useFlats() { return state.rootName.includes('b'); }
+
+/**
+ * Pitch class of the lowest-sounding string in a voicing.
+ * voicing: array of {string, fret, degreeIndex} | null
+ * string numbering: 1 = low E … 6 = high e
+ */
+function getVoicingBassPc(voicing, tuning) {
+  const played = voicing.filter(Boolean).sort((a, b) => a.string - b.string);
+  if (played.length === 0) return null;
+  const bass = played[0];
+  return (tuning[bass.string - 1] + bass.fret) % 12;
+}
 
 // ---------------------------------------------------------------------------
 // Core chord / scale data for the current state
@@ -41,6 +62,10 @@ function getChordScaleData() {
   if (state.mode === 'chord') {
     ({ pitchClasses, degrees } = getChordPitchClasses(rootPc, state.chordName));
     displayTitle = `${state.rootName} ${CHORD_LABELS[state.chordName]}`;
+    if (state.inversion > 0 && state.inversion < pitchClasses.length) {
+      const bassName = pcToName(pitchClasses[state.inversion], useFlats());
+      displayTitle += ` / ${bassName}`;
+    }
   } else {
     pitchClasses = getScalePitchClasses(rootPc, state.scaleName);
     degrees      = pitchClasses.map((_, i) => String(i + 1));
@@ -58,11 +83,10 @@ function render() {
   try {
     const { tuning, pitchClasses, degrees, displayTitle } = getChordScaleData();
 
-    const positions = findPositions(pitchClasses, tuning, state.maxFret);
-    const noteNames = pitchClasses.map(pc => pcToName(pc, state.useFlats));
+    const positions = findPositions(pitchClasses, tuning, FRETBOARD_FRETS);
+    const noteNames = pitchClasses.map(pc => pcToName(pc, useFlats()));
 
-    // Build activeKeys from the selected voicing so the fretboard can ring
-    // those specific dots, while still showing every chord-note position.
+    // Build activeKeys from the selected voicing
     let activeKeys;
     if (state.mode === 'chord' && state.voicings.length > 0) {
       const voicing = state.voicings[state.positionIndex]?.voicing ?? [];
@@ -72,11 +96,12 @@ function render() {
     }
 
     renderFretboard(document.getElementById('fretboard'), positions, degrees,
-      { maxFret: state.maxFret, activeKeys });
+      { maxFret: FRETBOARD_FRETS, activeKeys });
     renderLegend(document.getElementById('legend'), degrees, noteNames);
     document.getElementById('display-title').textContent = displayTitle;
   } catch (e) {
-    document.getElementById('fretboard').textContent = 'render() error: ' + e.message + ' — ' + e.stack;
+    document.getElementById('fretboard').textContent =
+      'render() error: ' + e.message + ' — ' + e.stack;
     console.error('render() failed:', e);
   }
 }
@@ -88,8 +113,44 @@ function render() {
 function computeVoicings() {
   if (state.mode !== 'chord') { state.voicings = []; return; }
   const { pitchClasses, tuning } = getChordScaleData();
-  state.voicings = findVoicingsAcrossNeck(pitchClasses, tuning, 22, 4);
+  const all = findVoicingsAcrossNeck(pitchClasses, tuning, VOICING_FRETS, 4);
+
+  // Filter by inversion (bass pitch class)
+  if (state.inversion > 0 && state.inversion < pitchClasses.length) {
+    const targetBass = pitchClasses[state.inversion];
+    const filtered = all.filter(v => getVoicingBassPc(v.voicing, tuning) === targetBass);
+    state.voicings = filtered.length > 0 ? filtered : all;
+  } else {
+    // Root position: prefer root-in-bass but don't exclude others
+    const rootBass = all.filter(v => getVoicingBassPc(v.voicing, tuning) === pitchClasses[0]);
+    state.voicings = rootBass.length > 0 ? rootBass : all;
+  }
+
   if (state.positionIndex >= state.voicings.length) state.positionIndex = 0;
+}
+
+/** Repopulate the inversion dropdown from current chord tones. */
+function populateInversionSelect() {
+  const el = document.getElementById('sel-inversion');
+  if (!el) return;
+
+  const { pitchClasses } = getChordScaleData();
+  const flat = useFlats();
+  const ordinals = ['Root pos.', '1st inv.', '2nd inv.', '3rd inv.', '4th inv.'];
+
+  el.innerHTML = '';
+  pitchClasses.forEach((pc, i) => {
+    const opt = document.createElement('option');
+    opt.value = i;
+    if (i === 0) {
+      opt.textContent = 'Root pos.';
+    } else {
+      const bassName = pcToName(pc, flat);
+      opt.textContent = `${ordinals[i]} (${state.rootName}/${bassName})`;
+    }
+    if (i === state.inversion) opt.selected = true;
+    el.appendChild(opt);
+  });
 }
 
 function renderPositionNav(scrollToActive = false) {
@@ -107,7 +168,6 @@ function renderPositionNav(scrollToActive = false) {
 
   const { voicings, positionIndex } = state;
 
-  // Navigator label
   const cur = voicings[positionIndex];
   let label = 'No voicings found';
   if (cur) {
@@ -121,7 +181,6 @@ function renderPositionNav(scrollToActive = false) {
   document.getElementById('pos-prev').disabled = positionIndex <= 0;
   document.getElementById('pos-next').disabled = positionIndex >= voicings.length - 1;
 
-  // Gallery
   const { degrees } = getChordScaleData();
   galleryEl.innerHTML = '';
 
@@ -150,18 +209,19 @@ function renderPositionNav(scrollToActive = false) {
     galleryEl.appendChild(card);
   });
 
-  // Scroll active card into view only when triggered by user action
   if (scrollToActive) {
     const active = galleryEl.querySelector('.voicing-card.active');
     if (active) active.scrollIntoView({ block: 'nearest', inline: 'nearest' });
   }
 }
 
-// Recompute voicings and refresh everything chord-related
 function fullChordRefresh() {
-  try { computeVoicings(); } catch (e) { console.error('computeVoicings failed:', e); state.voicings = []; }
+  try { computeVoicings(); } catch (e) {
+    console.error('computeVoicings failed:', e);
+    state.voicings = [];
+  }
+  populateInversionSelect();
   render();
-  // Defer gallery render so fretboard paints first and layout is stable
   setTimeout(renderPositionNav, 0);
 }
 
@@ -181,8 +241,10 @@ function populateSelect(el, entries, selected) {
 }
 
 function updateModeUI() {
-  document.getElementById('chord-row').style.display = state.mode === 'chord' ? '' : 'none';
-  document.getElementById('scale-row').style.display = state.mode === 'scale' ? '' : 'none';
+  const isChord = state.mode === 'chord';
+  document.getElementById('chord-row').style.display     = isChord ? '' : 'none';
+  document.getElementById('scale-row').style.display     = isChord ? 'none' : '';
+  document.getElementById('inversion-row').style.display = isChord ? '' : 'none';
 }
 
 function init() {
@@ -191,38 +253,70 @@ function init() {
   const elChord      = document.getElementById('sel-chord');
   const elScale      = document.getElementById('sel-scale');
   const elTuning     = document.getElementById('sel-tuning');
-  const elFlats      = document.getElementById('toggle-flats');
-  const elFrets      = document.getElementById('sel-frets');
-  const elFretsLabel = document.getElementById('frets-label');
+  const elInversion  = document.getElementById('sel-inversion');
 
   populateSelect(elRoot,   NOTE_NAMES_SHARP.map(n => [n, n]),                    state.rootName);
   populateSelect(elChord,  Object.keys(CHORDS).map(k =>  [k, CHORD_LABELS[k]]),  state.chordName);
   populateSelect(elScale,  Object.keys(SCALES).map(k =>  [k, SCALE_LABELS[k]]),  state.scaleName);
   populateSelect(elTuning, Object.keys(TUNINGS).map(k => [k, TUNING_LABELS[k]]), state.tuningKey);
 
-  elMode.addEventListener('change',  () => {
+  elMode.addEventListener('change', () => {
     state.mode = elMode.value;
     state.positionIndex = 0;
     updateModeUI();
     fullChordRefresh();
   });
-  elRoot.addEventListener('change',  () => { state.rootName  = elRoot.value;  state.positionIndex = 0; fullChordRefresh(); });
-  elChord.addEventListener('change', () => { state.chordName = elChord.value; state.positionIndex = 0; fullChordRefresh(); });
-  elScale.addEventListener('change', () => { state.scaleName = elScale.value; render(); });
-  elTuning.addEventListener('change',() => { state.tuningKey = elTuning.value; state.positionIndex = 0; fullChordRefresh(); });
-  elFlats.addEventListener('change', () => { state.useFlats  = elFlats.checked; render(); });
-  elFrets.addEventListener('input',  () => {
-    state.maxFret = parseInt(elFrets.value, 10);
-    elFretsLabel.textContent = state.maxFret;
-    render(); // voicings scan up to 22 frets regardless
+
+  elRoot.addEventListener('change', () => {
+    state.rootName    = elRoot.value;
+    state.inversion   = 0;
+    state.positionIndex = 0;
+    fullChordRefresh();
+  });
+
+  elChord.addEventListener('change', () => {
+    state.chordName   = elChord.value;
+    state.inversion   = 0;
+    state.positionIndex = 0;
+    fullChordRefresh();
+  });
+
+  elScale.addEventListener('change', () => {
+    state.scaleName = elScale.value;
+    render();
+  });
+
+  elTuning.addEventListener('change', () => {
+    state.tuningKey   = elTuning.value;
+    state.positionIndex = 0;
+    fullChordRefresh();
+  });
+
+  elInversion.addEventListener('change', () => {
+    state.inversion   = parseInt(elInversion.value, 10);
+    state.positionIndex = 0;
+    try { computeVoicings(); } catch (e) {
+      console.error('computeVoicings failed:', e);
+      state.voicings = [];
+    }
+    render();
+    setTimeout(renderPositionNav, 0);
   });
 
   // Position navigator buttons
   document.getElementById('pos-prev').addEventListener('click', () => {
-    if (state.positionIndex > 0) { state.positionIndex--; render(); renderPositionNav(true); }
+    if (state.positionIndex > 0) {
+      state.positionIndex--;
+      render();
+      renderPositionNav(true);
+    }
   });
   document.getElementById('pos-next').addEventListener('click', () => {
-    if (state.positionIndex < state.voicings.length - 1) { state.positionIndex++; render(); renderPositionNav(true); }
+    if (state.positionIndex < state.voicings.length - 1) {
+      state.positionIndex++;
+      render();
+      renderPositionNav(true);
+    }
   });
 
   updateModeUI();
@@ -231,7 +325,8 @@ function init() {
 
 document.addEventListener('DOMContentLoaded', () => {
   try { init(); } catch (e) {
-    document.getElementById('fretboard').textContent = 'init() error: ' + e.message + ' — ' + e.stack;
+    document.getElementById('fretboard').textContent =
+      'init() error: ' + e.message + ' — ' + e.stack;
     console.error('init() failed:', e);
   }
 });

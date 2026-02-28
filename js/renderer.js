@@ -8,9 +8,9 @@ const DEFAULTS = {
   marginTop:       40,
   marginLeft:      60,
   marginRight:     28,
-  marginBottom:    48,
+  marginBottom:    56,
   fretWidth:       56,
-  stringSpacing:   36,
+  stringSpacing:   40,
   dotRadius:       11,
   nutWidth:        6,
   fretLineWidth:   1.5,
@@ -135,7 +135,7 @@ export function renderFretboard(container, positions, degreeLabels = [], opts = 
   for (let f = 1; f <= fretCount; f++) {
     svgText(svg,
       cfg.marginLeft + (f - 0.5) * cfg.fretWidth,
-      cfg.marginTop + boardHeight + 20,
+      cfg.marginTop + boardHeight + Math.round(cfg.marginBottom / 2),
       String(f),
       { 'text-anchor': 'middle', 'dominant-baseline': 'middle',
         'font-size': '11', 'font-family': 'monospace', fill: '#555' });
@@ -164,8 +164,8 @@ export function renderFretboard(container, positions, degreeLabels = [], opts = 
     const color  = degreeColor(pos.degreeIndex, cfg);
     const active = activeKeys.has(`${pos.string}:${pos.fret}`);
     if (active) {
-      // Filled disc occludes string inside the ring gap, then ring on top
-      svgCircle(svg, x, y, cfg.openDotRadius + 7,
+      // Disc at ring-centre radius: occludes string between dot and ring, no gap outside
+      svgCircle(svg, x, y, cfg.openDotRadius + 5,
         { fill: cfg.fretboardColor, stroke: 'none' });
       svgCircle(svg, x, y, cfg.openDotRadius + 5,
         { fill: 'none', stroke: activeRingColor, 'stroke-width': 2.5 });
@@ -185,8 +185,8 @@ export function renderFretboard(container, positions, degreeLabels = [], opts = 
     const color  = degreeColor(pos.degreeIndex, cfg);
     const active = activeKeys.has(`${pos.string}:${pos.fret}`);
     if (active) {
-      // Filled disc occludes string inside the ring gap, then ring on top
-      svgCircle(svg, x, y, cfg.dotRadius + 7,
+      // Disc at ring-centre radius: occludes string between dot and ring, no gap outside
+      svgCircle(svg, x, y, cfg.dotRadius + 5,
         { fill: cfg.fretboardColor, stroke: 'none' });
       svgCircle(svg, x, y, cfg.dotRadius + 5,
         { fill: 'none', stroke: activeRingColor, 'stroke-width': 2.5 });
@@ -224,7 +224,7 @@ export function renderChordDiagram(container, voicing, degreeLabels = [], opts =
   const mTop    = 20;          // above top string — keeps open/mute symbols inside SVG
   const mLeft   = 22;          // left margin for × / open-string symbols
   const mRight  = 6;
-  const mBottom = 18;          // below bottom string for fret label
+  const mBottom = 24;          // below bottom string for fret label
 
   const boardW  = FRETS * FW;
   const boardH  = (STRINGS - 1) * SS;
