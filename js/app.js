@@ -87,7 +87,7 @@ function computeVoicings() {
   if (state.positionIndex >= state.voicings.length) state.positionIndex = 0;
 }
 
-function renderPositionNav() {
+function renderPositionNav(scrollToActive = false) {
   const navEl     = document.getElementById('position-nav');
   const galleryEl = document.getElementById('voicing-gallery');
 
@@ -139,15 +139,17 @@ function renderPositionNav() {
     card.addEventListener('click', () => {
       state.positionIndex = idx;
       render();
-      renderPositionNav();
+      renderPositionNav(true);
     });
 
     galleryEl.appendChild(card);
   });
 
-  // Scroll active card into view
-  const active = galleryEl.querySelector('.voicing-card.active');
-  if (active) active.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  // Scroll active card into view only when triggered by user action
+  if (scrollToActive) {
+    const active = galleryEl.querySelector('.voicing-card.active');
+    if (active) active.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  }
 }
 
 // Recompute voicings and refresh everything chord-related
@@ -211,10 +213,10 @@ function init() {
 
   // Position navigator buttons
   document.getElementById('pos-prev').addEventListener('click', () => {
-    if (state.positionIndex > 0) { state.positionIndex--; render(); renderPositionNav(); }
+    if (state.positionIndex > 0) { state.positionIndex--; render(); renderPositionNav(true); }
   });
   document.getElementById('pos-next').addEventListener('click', () => {
-    if (state.positionIndex < state.voicings.length - 1) { state.positionIndex++; render(); renderPositionNav(); }
+    if (state.positionIndex < state.voicings.length - 1) { state.positionIndex++; render(); renderPositionNav(true); }
   });
 
   updateModeUI();

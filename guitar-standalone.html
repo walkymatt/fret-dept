@@ -1113,7 +1113,7 @@ function computeVoicings() {
   if (state.positionIndex >= state.voicings.length)
     state.positionIndex = 0;
 }
-function renderPositionNav() {
+function renderPositionNav(scrollToActive = false) {
   const navEl = document.getElementById("position-nav");
   const galleryEl = document.getElementById("voicing-gallery");
   if (state.mode !== "chord") {
@@ -1150,13 +1150,15 @@ function renderPositionNav() {
     card.addEventListener("click", () => {
       state.positionIndex = idx;
       render();
-      renderPositionNav();
+      renderPositionNav(true);
     });
     galleryEl.appendChild(card);
   });
-  const active = galleryEl.querySelector(".voicing-card.active");
-  if (active)
-    active.scrollIntoView({ block: "nearest", inline: "nearest" });
+  if (scrollToActive) {
+    const active = galleryEl.querySelector(".voicing-card.active");
+    if (active)
+      active.scrollIntoView({ block: "nearest", inline: "nearest" });
+  }
 }
 function fullChordRefresh() {
   try {
@@ -1234,14 +1236,14 @@ function init() {
     if (state.positionIndex > 0) {
       state.positionIndex--;
       render();
-      renderPositionNav();
+      renderPositionNav(true);
     }
   });
   document.getElementById("pos-next").addEventListener("click", () => {
     if (state.positionIndex < state.voicings.length - 1) {
       state.positionIndex++;
       render();
-      renderPositionNav();
+      renderPositionNav(true);
     }
   });
   updateModeUI();
