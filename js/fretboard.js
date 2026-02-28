@@ -250,6 +250,53 @@ export function findVoicingsAcrossNeck(targetPcs, tuningSpec, maxFret = 22, wind
 }
 
 /**
+ * Find scale "box positions" across the neck.
+ * Anchors each window on a fret where a scale tone appears on the lowest
+ * string (string 1), covering frets 0–12 (one octave) so each standard
+ * position appears exactly once.
+ *
+ * Returns an array of { windowStart, windowSize, notes } where notes is
+ * an array of { string, fret, pc, degreeIndex }.
+ */
+export function findScalePositions(targetPcs, tuningSpec, maxFret = 22, windowSize = 5) {
+  const map  = buildFretboardMap(tuningSpec, maxFret);
+  const lowE = map[0];
+  const results = [];
+  const seen    = new Set();
+
+  const anchorMax = Math.min(12, maxFret - windowSize);
+
+  for (let anchor = 0; anchor <= anchorMax; anchor++) {
+    // Only start a window where a scale tone sits on the lowest string
+    if (targetPcs.indexOf(pitchClass(lowE[anchor])) === -1) continue;
+
+    // Collect every scale note in [anchor, anchor + windowSize)
+    const notes = [];
+    map.forEach((stringFrets, strIdx) => {
+      for (let fret = anchor; fret < anchor + windowSize; fret++) {
+        if (fret >= stringFrets.length) break;
+        const pc = pitchClass(stringFrets[fret]);
+        const di = targetPcs.indexOf(pc);
+        if (di !== -1) notes.push({ string: strIdx + 1, fret, pc, degreeIndex: di });
+      }
+    });
+
+    // Require every scale tone to be represented somewhere in the window
+    const present = new Set(notes.map(n => n.pc));
+    if (!targetPcs.every(pc => present.has(pc))) continue;
+
+    // Deduplicate by exact fingering fingerprint
+    const fp = notes.map(n => `${n.string}:${n.fret}`).join(',');
+    if (seen.has(fp)) continue;
+    seen.add(fp);
+
+    results.push({ windowStart: anchor, windowSize, notes });
+  }
+
+  return results;
+}
+
+/**
  * Identify which CAGED shape a voicing corresponds to, based on which
  * string carries the root (degreeIndex === 0) in the lowest position.
  *

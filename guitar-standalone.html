@@ -441,6 +441,22 @@ input[type="range"] {
   <!-- Voicing gallery (chord mode only) -->
   <div id="voicing-gallery" class="voicing-gallery" style="display:none"></div>
 
+  <!-- Scale position navigator (scale mode only) -->
+  <div id="scale-position-nav" class="position-nav-card" style="display:none">
+    <div class="pos-nav-header">
+      <span class="pos-nav-title">Scale positions</span>
+      <div class="pos-nav-controls">
+        <button id="scale-pos-prev" class="pos-btn" aria-label="Previous position">&#9664;</button>
+        <span id="scale-pos-label" class="pos-label"></span>
+        <button id="scale-pos-next" class="pos-btn" aria-label="Next position">&#9654;</button>
+        <span id="scale-pos-count" class="pos-count"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scale diagram gallery (scale mode only) -->
+  <div id="scale-gallery" class="voicing-gallery" style="display:none"></div>
+
 <script>
 // js/theory.js
 var NOTE_NAMES_SHARP = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
@@ -750,6 +766,37 @@ function findVoicingsAcrossNeck(targetPcs, tuningSpec, maxFret = 22, windowSize 
   }
   return results;
 }
+function findScalePositions(targetPcs, tuningSpec, maxFret = 22, windowSize = 5) {
+  const map = buildFretboardMap(tuningSpec, maxFret);
+  const lowE = map[0];
+  const results = [];
+  const seen = new Set;
+  const anchorMax = Math.min(12, maxFret - windowSize);
+  for (let anchor = 0;anchor <= anchorMax; anchor++) {
+    if (targetPcs.indexOf(pitchClass(lowE[anchor])) === -1)
+      continue;
+    const notes = [];
+    map.forEach((stringFrets, strIdx) => {
+      for (let fret = anchor;fret < anchor + windowSize; fret++) {
+        if (fret >= stringFrets.length)
+          break;
+        const pc = pitchClass(stringFrets[fret]);
+        const di = targetPcs.indexOf(pc);
+        if (di !== -1)
+          notes.push({ string: strIdx + 1, fret, pc, degreeIndex: di });
+      }
+    });
+    const present = new Set(notes.map((n) => n.pc));
+    if (!targetPcs.every((pc) => present.has(pc)))
+      continue;
+    const fp = notes.map((n) => `${n.string}:${n.fret}`).join(",");
+    if (seen.has(fp))
+      continue;
+    seen.add(fp);
+    results.push({ windowStart: anchor, windowSize, notes });
+  }
+  return results;
+}
 function identifyCagedShape(voicing) {
   let rootStrIdx = -1;
   for (let i = 0;i < voicing.length; i++) {
@@ -1042,6 +1089,65 @@ function renderChordDiagram(container, voicing, degreeLabels = [], opts = {}) {
   container.innerHTML = "";
   container.appendChild(svg);
 }
+function renderScaleDiagram(container, notes, windowStart, windowSize) {
+  const cfg = DEFAULTS;
+  const STRINGS = 6;
+  const FRETS = windowSize;
+  const FW = 24;
+  const SS = 17;
+  const DR = 6;
+  const NW = 5;
+  const mTop = 8;
+  const mLeft = 12;
+  const mRight = 8;
+  const mBottom = 22;
+  const boardW = FRETS * FW;
+  const boardH = (STRINGS - 1) * SS;
+  const svgW = mLeft + boardW + mRight;
+  const svgH = mTop + boardH + mBottom;
+  const isOpen = windowStart === 0;
+  const strY = (strIdx) => mTop + (STRINGS - 1 - strIdx) * SS;
+  const noteX = (fret) => mLeft + (fret - windowStart + 0.5) * FW;
+  const svg = attrs(ns("svg"), {
+    viewBox: `0 0 ${svgW} ${svgH}`,
+    width: svgW,
+    height: svgH,
+    preserveAspectRatio: "xMidYMid meet"
+  });
+  svgRect(svg, mLeft, mTop, boardW, boardH, { fill: cfg.fretboardColor });
+  if (isOpen) {
+    svgRect(svg, mLeft, mTop - 1, NW, boardH + 2, { fill: cfg.nutColor });
+  } else {
+    svgLine(svg, mLeft, mTop, mLeft, mTop + boardH, { stroke: cfg.fretColor, "stroke-width": 1.5 });
+  }
+  for (let f = 1;f <= FRETS; f++) {
+    svgLine(svg, mLeft + f * FW, mTop, mLeft + f * FW, mTop + boardH, { stroke: cfg.fretColor, "stroke-width": 1.5 });
+  }
+  for (let s = 0;s < STRINGS; s++) {
+    svgLine(svg, mLeft, strY(s), mLeft + boardW, strY(s), {
+      stroke: cfg.stringColor,
+      "stroke-width": (1.8 - s * 0.22).toFixed(2)
+    });
+  }
+  if (!isOpen) {
+    svgText(svg, mLeft + FW * 0.5, mTop + boardH + 14, `${windowStart}fr`, {
+      "text-anchor": "middle",
+      "dominant-baseline": "middle",
+      "font-size": "9",
+      "font-family": "monospace",
+      fill: "#000"
+    });
+  }
+  notes.forEach((n) => {
+    svgCircle(svg, noteX(n.fret), strY(n.string - 1), DR, {
+      fill: degreeColor(n.degreeIndex, cfg),
+      stroke: "#000",
+      "stroke-width": 1.2
+    });
+  });
+  container.innerHTML = "";
+  container.appendChild(svg);
+}
 function renderLegend(container, degreeLabels, noteNames = [], opts = {}) {
   const cfg = Object.assign({}, DEFAULTS, opts);
   container.innerHTML = "";
@@ -1071,7 +1177,9 @@ var state = {
   tuningKey: "standard",
   inversion: 0,
   positionIndex: 0,
-  voicings: []
+  voicings: [],
+  scalePositionIndex: 0,
+  scalePositions: []
 };
 function useFlats() {
   return state.rootName.includes("b");
@@ -1103,6 +1211,10 @@ function render() {
     if (state.mode === "chord" && state.voicings.length > 0) {
       const voicing = state.voicings[state.positionIndex]?.voicing ?? [];
       activeKeys = new Set(voicing.filter(Boolean).map((v) => `${v.string}:${v.fret}`));
+    } else if (state.mode === "scale" && state.scalePositions.length > 0) {
+      const pos = state.scalePositions[state.scalePositionIndex];
+      if (pos)
+        activeKeys = new Set(pos.notes.map((n) => `${n.string}:${n.fret}`));
     }
     renderFretboard(document.getElementById("fretboard"), positions, degrees, { maxFret: FRETBOARD_FRETS, activeKeys });
     renderLegend(document.getElementById("legend"), degrees, noteNames);
@@ -1134,12 +1246,7 @@ function populateInversionSelect() {
   pitchClasses.forEach((pc, i) => {
     const opt = document.createElement("option");
     opt.value = i;
-    if (i === 0) {
-      opt.textContent = "Root pos.";
-    } else {
-      const bassName = pcToName(pc, flat);
-      opt.textContent = `${ordinals[i]} (${state.rootName}/${bassName})`;
-    }
+    opt.textContent = i === 0 ? "Root pos." : `${ordinals[i]} (${state.rootName}/${pcToName(pc, flat)})`;
     if (i === state.inversion)
       opt.selected = true;
     el.appendChild(opt);
@@ -1157,11 +1264,7 @@ function renderPositionNav(scrollToActive = false) {
   galleryEl.style.display = "";
   const { voicings, positionIndex } = state;
   const cur = voicings[positionIndex];
-  let label = "No voicings found";
-  if (cur) {
-    const shape = cur.cagedShape ? `${cur.cagedShape} shape · ` : "";
-    label = `${shape}fret ${cur.windowStart}`;
-  }
+  const label = cur ? `${cur.cagedShape ? cur.cagedShape + " shape · " : ""}fret ${cur.windowStart}` : "No voicings found";
   document.getElementById("pos-label").textContent = label;
   document.getElementById("pos-count").textContent = voicings.length > 0 ? `${positionIndex + 1} / ${voicings.length}` : "";
   document.getElementById("pos-prev").disabled = positionIndex <= 0;
@@ -1192,16 +1295,79 @@ function renderPositionNav(scrollToActive = false) {
       active.scrollIntoView({ block: "nearest", inline: "nearest" });
   }
 }
-function fullChordRefresh() {
-  try {
-    computeVoicings();
-  } catch (e) {
-    console.error("computeVoicings failed:", e);
-    state.voicings = [];
+function computeScalePositions() {
+  if (state.mode !== "scale") {
+    state.scalePositions = [];
+    return;
   }
-  populateInversionSelect();
+  const { pitchClasses, tuning } = getChordScaleData();
+  state.scalePositions = findScalePositions(pitchClasses, tuning, VOICING_FRETS, 5);
+  if (state.scalePositionIndex >= state.scalePositions.length)
+    state.scalePositionIndex = 0;
+}
+function renderScaleNav(scrollToActive = false) {
+  const navEl = document.getElementById("scale-position-nav");
+  const galleryEl = document.getElementById("scale-gallery");
+  if (state.mode !== "scale") {
+    navEl.style.display = "none";
+    galleryEl.style.display = "none";
+    return;
+  }
+  navEl.style.display = "";
+  galleryEl.style.display = "";
+  const { scalePositions, scalePositionIndex } = state;
+  const cur = scalePositions[scalePositionIndex];
+  document.getElementById("scale-pos-label").textContent = cur ? `fret ${cur.windowStart}` : "No positions found";
+  document.getElementById("scale-pos-count").textContent = scalePositions.length > 0 ? `${scalePositionIndex + 1} / ${scalePositions.length}` : "";
+  document.getElementById("scale-pos-prev").disabled = scalePositionIndex <= 0;
+  document.getElementById("scale-pos-next").disabled = scalePositionIndex >= scalePositions.length - 1;
+  galleryEl.innerHTML = "";
+  scalePositions.forEach((pos, idx) => {
+    const card = document.createElement("div");
+    card.className = "voicing-card" + (idx === scalePositionIndex ? " active" : "");
+    const diagEl = document.createElement("div");
+    diagEl.className = "voicing-diagram";
+    renderScaleDiagram(diagEl, pos.notes, pos.windowStart, pos.windowSize);
+    const lbl = document.createElement("div");
+    lbl.className = "voicing-card-label";
+    lbl.textContent = `fr${pos.windowStart}`;
+    card.appendChild(diagEl);
+    card.appendChild(lbl);
+    card.addEventListener("click", () => {
+      state.scalePositionIndex = idx;
+      render();
+      renderScaleNav(true);
+    });
+    galleryEl.appendChild(card);
+  });
+  if (scrollToActive) {
+    const active = galleryEl.querySelector(".voicing-card.active");
+    if (active)
+      active.scrollIntoView({ block: "nearest", inline: "nearest" });
+  }
+}
+function fullRefresh() {
+  if (state.mode === "chord") {
+    try {
+      computeVoicings();
+    } catch (e) {
+      console.error("computeVoicings failed:", e);
+      state.voicings = [];
+    }
+    populateInversionSelect();
+  } else {
+    try {
+      computeScalePositions();
+    } catch (e) {
+      console.error("computeScalePositions failed:", e);
+      state.scalePositions = [];
+    }
+  }
   render();
-  setTimeout(renderPositionNav, 0);
+  setTimeout(() => {
+    renderPositionNav();
+    renderScaleNav();
+  }, 0);
 }
 function populateSelect(el, entries, selected) {
   el.innerHTML = "";
@@ -1234,29 +1400,33 @@ function init() {
   elMode.addEventListener("change", () => {
     state.mode = elMode.value;
     state.positionIndex = 0;
+    state.scalePositionIndex = 0;
     updateModeUI();
-    fullChordRefresh();
+    fullRefresh();
   });
   elRoot.addEventListener("change", () => {
     state.rootName = elRoot.value;
     state.inversion = 0;
     state.positionIndex = 0;
-    fullChordRefresh();
+    state.scalePositionIndex = 0;
+    fullRefresh();
   });
   elChord.addEventListener("change", () => {
     state.chordName = elChord.value;
     state.inversion = 0;
     state.positionIndex = 0;
-    fullChordRefresh();
+    fullRefresh();
   });
   elScale.addEventListener("change", () => {
     state.scaleName = elScale.value;
-    render();
+    state.scalePositionIndex = 0;
+    fullRefresh();
   });
   elTuning.addEventListener("change", () => {
     state.tuningKey = elTuning.value;
     state.positionIndex = 0;
-    fullChordRefresh();
+    state.scalePositionIndex = 0;
+    fullRefresh();
   });
   elInversion.addEventListener("change", () => {
     state.inversion = parseInt(elInversion.value, 10);
@@ -1284,8 +1454,22 @@ function init() {
       renderPositionNav(true);
     }
   });
+  document.getElementById("scale-pos-prev").addEventListener("click", () => {
+    if (state.scalePositionIndex > 0) {
+      state.scalePositionIndex--;
+      render();
+      renderScaleNav(true);
+    }
+  });
+  document.getElementById("scale-pos-next").addEventListener("click", () => {
+    if (state.scalePositionIndex < state.scalePositions.length - 1) {
+      state.scalePositionIndex++;
+      render();
+      renderScaleNav(true);
+    }
+  });
   updateModeUI();
-  fullChordRefresh();
+  fullRefresh();
 }
 document.addEventListener("DOMContentLoaded", () => {
   try {
