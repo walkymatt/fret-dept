@@ -312,12 +312,18 @@ input[type="range"] {
   width: 100%;
   max-width: 900px;
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;          /* single row */
   gap: 12px;
   margin-bottom: 24px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 6px;        /* room for scrollbar */
 }
 
 .voicing-card {
+  flex: 0 0 calc(33.333% - 8px);   /* exactly 3 per visible width */
+  min-width: 0;
   background: var(--surface);
   border: 2px solid var(--border);
   border-radius: var(--radius);
@@ -327,6 +333,7 @@ input[type="range"] {
   flex-direction: column;
   align-items: center;
   gap: 4px;
+  scroll-snap-align: start;
   transition: border-color 0.15s, background 0.15s;
   box-shadow: var(--shadow);
 }

@@ -208,14 +208,14 @@ export function renderChordDiagram(container, voicing, degreeLabels = [], opts =
   const STRINGS = 6;
   const FRETS   = 4;           // fret slots shown
   const FW      = 26;          // pixels per fret (horizontal)
-  const SS      = 15;          // pixels per string (vertical)
-  const DR      = 7;           // note dot radius
-  const NW      = 5;           // nut width
+  const SS      = 11;          // pixels per string (vertical) — compact so card stays short
+  const DR      = 6;           // note dot radius
+  const NW      = 4;           // nut width
 
-  const mTop    = 8;           // above top string
-  const mLeft   = 20;          // left of nut (for × / open-string symbols)
-  const mRight  = 6;
-  const mBottom = 16;          // below bottom string (fret label)
+  const mTop    = 6;           // above top string
+  const mLeft   = 18;          // left of nut (for × / open-string symbols)
+  const mRight  = 5;
+  const mBottom = 14;          // below bottom string (fret label)
 
   const boardW  = FRETS * FW;
   const boardH  = (STRINGS - 1) * SS;
