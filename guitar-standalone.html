@@ -178,12 +178,14 @@ input[type="range"] {
 #fretboard {
   display: block;
   width: 100%;
+  min-height: 120px;
 }
 
 #fretboard svg {
   display: block;
   width: 100%;
   height: auto;
+  max-width: 100%;
 }
 
 /* ---- Legend ---- */
@@ -865,6 +867,8 @@ function renderFretboard(container, positions, degreeLabels = [], opts = {}) {
   const svgH = cfg.marginTop + boardHeight + cfg.marginBottom;
   const svg = attrs(ns("svg"), {
     viewBox: `0 0 ${svgW} ${svgH}`,
+    width: svgW,
+    height: svgH,
     preserveAspectRatio: "xMidYMid meet"
   });
   svgRect(svg, cfg.marginLeft, cfg.marginTop, boardWidth, boardHeight, { fill: cfg.fretboardColor, rx: 2 });
@@ -1091,17 +1095,22 @@ function getChordScaleData() {
   return { rootPc, tuning, pitchClasses, degrees, displayTitle };
 }
 function render() {
-  const { tuning, pitchClasses, degrees, displayTitle } = getChordScaleData();
-  const positions = findPositions(pitchClasses, tuning, state.maxFret);
-  const noteNames = pitchClasses.map((pc) => pcToName(pc, state.useFlats));
-  let activeKeys;
-  if (state.mode === "chord" && state.voicings.length > 0) {
-    const voicing = state.voicings[state.positionIndex]?.voicing ?? [];
-    activeKeys = new Set(voicing.filter(Boolean).map((v) => `${v.string}:${v.fret}`));
+  try {
+    const { tuning, pitchClasses, degrees, displayTitle } = getChordScaleData();
+    const positions = findPositions(pitchClasses, tuning, state.maxFret);
+    const noteNames = pitchClasses.map((pc) => pcToName(pc, state.useFlats));
+    let activeKeys;
+    if (state.mode === "chord" && state.voicings.length > 0) {
+      const voicing = state.voicings[state.positionIndex]?.voicing ?? [];
+      activeKeys = new Set(voicing.filter(Boolean).map((v) => `${v.string}:${v.fret}`));
+    }
+    renderFretboard(document.getElementById("fretboard"), positions, degrees, { maxFret: state.maxFret, activeKeys });
+    renderLegend(document.getElementById("legend"), degrees, noteNames);
+    document.getElementById("display-title").textContent = displayTitle;
+  } catch (e) {
+    document.getElementById("fretboard").textContent = "render() error: " + e.message + " — " + e.stack;
+    console.error("render() failed:", e);
   }
-  renderFretboard(document.getElementById("fretboard"), positions, degrees, { maxFret: state.maxFret, activeKeys });
-  renderLegend(document.getElementById("legend"), degrees, noteNames);
-  document.getElementById("display-title").textContent = displayTitle;
 }
 function computeVoicings() {
   if (state.mode !== "chord") {
@@ -1168,7 +1177,7 @@ function fullChordRefresh() {
     state.voicings = [];
   }
   render();
-  renderPositionNav();
+  setTimeout(renderPositionNav, 0);
 }
 function populateSelect(el, entries, selected) {
   el.innerHTML = "";
@@ -1249,7 +1258,14 @@ function init() {
   updateModeUI();
   fullChordRefresh();
 }
-document.addEventListener("DOMContentLoaded", init);
+document.addEventListener("DOMContentLoaded", () => {
+  try {
+    init();
+  } catch (e) {
+    document.getElementById("fretboard").textContent = "init() error: " + e.message + " — " + e.stack;
+    console.error("init() failed:", e);
+  }
+});
 
   </script>
 </body>

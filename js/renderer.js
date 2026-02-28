@@ -86,6 +86,8 @@ export function renderFretboard(container, positions, degreeLabels = [], opts = 
 
   const svg = attrs(ns('svg'), {
     viewBox: `0 0 ${svgW} ${svgH}`,
+    width:   svgW,    // explicit attrs prevent height-collapse in some browsers
+    height:  svgH,
     preserveAspectRatio: 'xMidYMid meet',
   });
 

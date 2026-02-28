@@ -55,25 +55,30 @@ function getChordScaleData() {
 // ---------------------------------------------------------------------------
 
 function render() {
-  const { tuning, pitchClasses, degrees, displayTitle } = getChordScaleData();
+  try {
+    const { tuning, pitchClasses, degrees, displayTitle } = getChordScaleData();
 
-  const positions = findPositions(pitchClasses, tuning, state.maxFret);
-  const noteNames = pitchClasses.map(pc => pcToName(pc, state.useFlats));
+    const positions = findPositions(pitchClasses, tuning, state.maxFret);
+    const noteNames = pitchClasses.map(pc => pcToName(pc, state.useFlats));
 
-  // Build activeKeys from the selected voicing so the fretboard can ring
-  // those specific dots, while still showing every chord-note position.
-  let activeKeys;
-  if (state.mode === 'chord' && state.voicings.length > 0) {
-    const voicing = state.voicings[state.positionIndex]?.voicing ?? [];
-    activeKeys = new Set(
-      voicing.filter(Boolean).map(v => `${v.string}:${v.fret}`)
-    );
+    // Build activeKeys from the selected voicing so the fretboard can ring
+    // those specific dots, while still showing every chord-note position.
+    let activeKeys;
+    if (state.mode === 'chord' && state.voicings.length > 0) {
+      const voicing = state.voicings[state.positionIndex]?.voicing ?? [];
+      activeKeys = new Set(
+        voicing.filter(Boolean).map(v => `${v.string}:${v.fret}`)
+      );
+    }
+
+    renderFretboard(document.getElementById('fretboard'), positions, degrees,
+      { maxFret: state.maxFret, activeKeys });
+    renderLegend(document.getElementById('legend'), degrees, noteNames);
+    document.getElementById('display-title').textContent = displayTitle;
+  } catch (e) {
+    document.getElementById('fretboard').textContent = 'render() error: ' + e.message + ' — ' + e.stack;
+    console.error('render() failed:', e);
   }
-
-  renderFretboard(document.getElementById('fretboard'), positions, degrees,
-    { maxFret: state.maxFret, activeKeys });
-  renderLegend(document.getElementById('legend'), degrees, noteNames);
-  document.getElementById('display-title').textContent = displayTitle;
 }
 
 // ---------------------------------------------------------------------------
@@ -156,7 +161,8 @@ function renderPositionNav(scrollToActive = false) {
 function fullChordRefresh() {
   try { computeVoicings(); } catch (e) { console.error('computeVoicings failed:', e); state.voicings = []; }
   render();
-  renderPositionNav();
+  // Defer gallery render so fretboard paints first and layout is stable
+  setTimeout(renderPositionNav, 0);
 }
 
 // ---------------------------------------------------------------------------
@@ -223,4 +229,9 @@ function init() {
   fullChordRefresh();
 }
 
-document.addEventListener('DOMContentLoaded', init);
+document.addEventListener('DOMContentLoaded', () => {
+  try { init(); } catch (e) {
+    document.getElementById('fretboard').textContent = 'init() error: ' + e.message + ' — ' + e.stack;
+    console.error('init() failed:', e);
+  }
+});

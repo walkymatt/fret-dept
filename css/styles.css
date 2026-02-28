@@ -171,12 +171,14 @@ input[type="range"] {
 #fretboard {
   display: block;
   width: 100%;
+  min-height: 120px;
 }
 
 #fretboard svg {
   display: block;
   width: 100%;
   height: auto;
+  max-width: 100%;
 }
 
 /* ---- Legend ---- */
