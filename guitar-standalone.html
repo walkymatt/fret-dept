@@ -952,42 +952,50 @@ function renderFretboard(container, positions, degreeLabels = [], opts = {}) {
 function renderChordDiagram(container, voicing, degreeLabels = [], opts = {}) {
   const cfg = Object.assign({}, DEFAULTS, opts);
   const STRINGS = 6;
-  const FRETS = cfg.diagramFretCount ?? 4;
-  const SS = cfg.diagramStringSpacing ?? 20;
-  const FH = cfg.diagramFretHeight ?? 22;
-  const DR = cfg.diagramDotRadius ?? 9;
-  const mTop = 26;
-  const mLeft = 26;
-  const mBot = 6;
-  const boardW = (STRINGS - 1) * SS;
-  const boardH = FRETS * FH;
-  const svgW = mLeft + boardW + DR + 6;
-  const svgH = mTop + boardH + mBot;
-  let topFret = Infinity;
+  const FRETS = 4;
+  const FW = 26;
+  const SS = 15;
+  const DR = 7;
+  const NW = 5;
+  const mTop = 8;
+  const mLeft = 20;
+  const mRight = 6;
+  const mBottom = 16;
+  const boardW = FRETS * FW;
+  const boardH = (STRINGS - 1) * SS;
+  const svgW = mLeft + boardW + mRight;
+  const svgH = mTop + boardH + mBottom;
+  const strY = (s) => mTop + (STRINGS - 1 - s) * SS;
+  let minFret = Infinity;
   for (const v of voicing) {
-    if (v !== null && v.fret > 0 && v.fret < topFret)
-      topFret = v.fret;
+    if (v !== null && v.fret > 0 && v.fret < minFret)
+      minFret = v.fret;
   }
-  if (topFret === Infinity)
-    topFret = 1;
-  const isOpen = topFret <= 1;
+  if (minFret === Infinity)
+    minFret = 0;
+  const isOpen = minFret <= 1;
   const svg = attrs(ns("svg"), {
     viewBox: `0 0 ${svgW} ${svgH}`,
     preserveAspectRatio: "xMidYMid meet"
   });
-  for (let f = 0;f <= FRETS; f++) {
-    const y = mTop + f * FH;
-    const w = f === 0 ? isOpen ? 4 : 2 : 1.5;
-    svgLine(svg, mLeft, y, mLeft + boardW, y, { stroke: cfg.nutColor, "stroke-width": w });
+  svgRect(svg, mLeft, mTop, boardW, boardH, { fill: cfg.fretboardColor, rx: 1 });
+  if (isOpen) {
+    svgRect(svg, mLeft - NW / 2, mTop - 1, NW, boardH + 2, { fill: cfg.nutColor, rx: 1 });
+  } else {
+    svgLine(svg, mLeft, mTop, mLeft, mTop + boardH, { stroke: cfg.fretColor, "stroke-width": 1.5 });
+  }
+  for (let f = 1;f <= FRETS; f++) {
+    const x = mLeft + f * FW;
+    svgLine(svg, x, mTop, x, mTop + boardH, { stroke: cfg.fretColor, "stroke-width": 1.5 });
   }
   for (let s = 0;s < STRINGS; s++) {
-    const x = mLeft + s * SS;
-    const thickness = 0.6 + (STRINGS - 1 - s) / (STRINGS - 1) * 1.6;
-    svgLine(svg, x, mTop, x, mTop + boardH, { stroke: cfg.stringColor, "stroke-width": thickness });
+    const y = strY(s);
+    const thickness = 0.5 + (STRINGS - 1 - s) / (STRINGS - 1) * 1.6;
+    svgLine(svg, mLeft, y, mLeft + boardW, y, { stroke: cfg.stringColor, "stroke-width": thickness });
   }
   if (!isOpen) {
-    svgText(svg, 2, mTop + FH * 0.5, `${topFret}fr`, {
-      "text-anchor": "start",
+    svgText(svg, mLeft + FW * 0.5, mTop + boardH + 11, `${minFret}fr`, {
+      "text-anchor": "middle",
       "dominant-baseline": "middle",
       "font-size": "9",
       "font-family": "monospace",
@@ -995,23 +1003,23 @@ function renderChordDiagram(container, voicing, degreeLabels = [], opts = {}) {
     });
   }
   voicing.forEach((v, strIdx) => {
-    const x = mLeft + strIdx * SS;
-    const y = mTop - 10;
+    const x = mLeft - 10;
+    const y = strY(strIdx);
     if (v === null) {
       svgText(svg, x, y, "×", {
         "text-anchor": "middle",
         "dominant-baseline": "middle",
-        "font-size": "13",
+        "font-size": "11",
         "font-family": "sans-serif",
         fill: "#777"
       });
     } else if (v.fret === 0) {
       const color = degreeColor(v.degreeIndex, cfg);
-      svgCircle(svg, x, y, 6, { fill: color, stroke: "#fff", "stroke-width": 1.5 });
+      svgCircle(svg, x, y, 6, { fill: color, stroke: "#fff", "stroke-width": 1.2 });
       svgText(svg, x, y, degreeLabels[v.degreeIndex] ?? "", {
         "text-anchor": "middle",
         "dominant-baseline": "middle",
-        "font-size": "8",
+        "font-size": "7",
         "font-family": "sans-serif",
         "font-weight": "bold",
         fill: cfg.labelColor
@@ -1021,15 +1029,15 @@ function renderChordDiagram(container, voicing, degreeLabels = [], opts = {}) {
   voicing.forEach((v, strIdx) => {
     if (v === null || v.fret === 0)
       return;
-    const x = mLeft + strIdx * SS;
-    const diagFret = v.fret - topFret + 1;
-    const y = mTop + (diagFret - 0.5) * FH;
+    const fretPos = v.fret - minFret;
+    const x = mLeft + (fretPos + 0.5) * FW;
+    const y = strY(strIdx);
     const color = degreeColor(v.degreeIndex, cfg);
     svgCircle(svg, x, y, DR, { fill: color, stroke: "#fff", "stroke-width": 1.5 });
     svgText(svg, x, y, degreeLabels[v.degreeIndex] ?? "", {
       "text-anchor": "middle",
       "dominant-baseline": "middle",
-      "font-size": "9",
+      "font-size": "8",
       "font-family": "sans-serif",
       "font-weight": "bold",
       fill: cfg.labelColor
@@ -1133,12 +1141,7 @@ function renderPositionNav() {
     card.className = "voicing-card" + (idx === positionIndex ? " active" : "");
     const diagEl = document.createElement("div");
     diagEl.className = "voicing-diagram";
-    renderChordDiagram(diagEl, v.voicing, degrees, {
-      diagramFretCount: 4,
-      diagramStringSpacing: 18,
-      diagramFretHeight: 20,
-      diagramDotRadius: 8
-    });
+    renderChordDiagram(diagEl, v.voicing, degrees);
     const lbl = document.createElement("div");
     lbl.className = "voicing-card-label";
     lbl.textContent = v.cagedShape ? `${v.cagedShape}  fr${v.windowStart}` : `fr${v.windowStart}`;
@@ -1156,7 +1159,12 @@ function renderPositionNav() {
     active.scrollIntoView({ block: "nearest", inline: "nearest" });
 }
 function fullChordRefresh() {
-  computeVoicings();
+  try {
+    computeVoicings();
+  } catch (e) {
+    console.error("computeVoicings failed:", e);
+    state.voicings = [];
+  }
   render();
   renderPositionNav();
 }

@@ -193,98 +193,113 @@ export function renderFretboard(container, positions, degreeLabels = [], opts = 
 }
 
 /**
- * Render a traditional vertical chord diagram into container.
+ * Render a compact horizontal mini-fretboard for a single chord voicing.
+ * Matches the orientation of the main fretboard: low E at bottom, nut on
+ * the left, higher frets to the right.
  *
- * voicing  — array of 6 items (one per string, low-E first), each either
- *            { string, fret, pc, degreeIndex } or null (muted).
+ * voicing      — array of 6 items (strIdx 0 = low E), null = muted.
  * degreeLabels — e.g. ['1','3','5']
- * opts — can override any DEFAULTS key plus:
- *   diagramFretCount   (default 4)
- *   diagramStringSpacing (default 20)
- *   diagramFretHeight  (default 22)
- *   diagramDotRadius   (default 9)
  */
 export function renderChordDiagram(container, voicing, degreeLabels = [], opts = {}) {
-  const cfg  = Object.assign({}, DEFAULTS, opts);
+  const cfg = Object.assign({}, DEFAULTS, opts);
+
   const STRINGS = 6;
-  const FRETS   = cfg.diagramFretCount      ?? 4;
-  const SS      = cfg.diagramStringSpacing  ?? 20;   // horizontal string gap
-  const FH      = cfg.diagramFretHeight     ?? 22;   // vertical fret gap
-  const DR      = cfg.diagramDotRadius      ?? 9;    // fretted dot radius
+  const FRETS   = 4;           // fret slots shown
+  const FW      = 26;          // pixels per fret (horizontal)
+  const SS      = 15;          // pixels per string (vertical)
+  const DR      = 7;           // note dot radius
+  const NW      = 5;           // nut width
 
-  const mTop  = 26;   // space above nut for × / ○ markers
-  const mLeft = 26;   // space for fret-number label
-  const mBot  = 6;
-  const boardW = (STRINGS - 1) * SS;
-  const boardH = FRETS * FH;
-  const svgW   = mLeft + boardW + DR + 6;
-  const svgH   = mTop  + boardH + mBot;
+  const mTop    = 8;           // above top string
+  const mLeft   = 20;          // left of nut (for × / open-string symbols)
+  const mRight  = 6;
+  const mBottom = 16;          // below bottom string (fret label)
 
-  // Determine the fret at the top of the diagram
-  let topFret = Infinity;
+  const boardW  = FRETS * FW;
+  const boardH  = (STRINGS - 1) * SS;
+  const svgW    = mLeft + boardW + mRight;
+  const svgH    = mTop  + boardH + mBottom;
+
+  // String y: strIdx 0 (low E) at BOTTOM, strIdx 5 (high e) at TOP
+  const strY = s => mTop + (STRINGS - 1 - s) * SS;
+
+  // Min fretted note → determines left edge of the diagram window
+  let minFret = Infinity;
   for (const v of voicing) {
-    if (v !== null && v.fret > 0 && v.fret < topFret) topFret = v.fret;
+    if (v !== null && v.fret > 0 && v.fret < minFret) minFret = v.fret;
   }
-  if (topFret === Infinity) topFret = 1;
-  const isOpen = topFret <= 1;
+  if (minFret === Infinity) minFret = 0;
+  const isOpen = minFret <= 1;   // nut visible; fret 0 = open strings
 
   const svg = attrs(ns('svg'), {
     viewBox: `0 0 ${svgW} ${svgH}`,
     preserveAspectRatio: 'xMidYMid meet',
   });
 
-  // Fret lines (including the nut / top bar)
-  for (let f = 0; f <= FRETS; f++) {
-    const y = mTop + f * FH;
-    const w = f === 0 ? (isOpen ? 4 : 2) : 1.5;
-    svgLine(svg, mLeft, y, mLeft + boardW, y,
-      { stroke: cfg.nutColor, 'stroke-width': w });
+  // Fretboard body
+  svgRect(svg, mLeft, mTop, boardW, boardH,
+    { fill: cfg.fretboardColor, rx: 1 });
+
+  // Nut (thick bar) when in open position, otherwise thin left edge
+  if (isOpen) {
+    svgRect(svg, mLeft - NW / 2, mTop - 1, NW, boardH + 2,
+      { fill: cfg.nutColor, rx: 1 });
+  } else {
+    svgLine(svg, mLeft, mTop, mLeft, mTop + boardH,
+      { stroke: cfg.fretColor, 'stroke-width': 1.5 });
   }
 
-  // Strings (vertical lines, thin on treble side)
-  for (let s = 0; s < STRINGS; s++) {
-    const x         = mLeft + s * SS;
-    const thickness = 0.6 + ((STRINGS - 1 - s) / (STRINGS - 1)) * 1.6;
+  // Vertical fret lines
+  for (let f = 1; f <= FRETS; f++) {
+    const x = mLeft + f * FW;
     svgLine(svg, x, mTop, x, mTop + boardH,
+      { stroke: cfg.fretColor, 'stroke-width': 1.5 });
+  }
+
+  // Horizontal string lines (low E = bottom = thickest)
+  for (let s = 0; s < STRINGS; s++) {
+    const y         = strY(s);
+    const thickness = 0.5 + ((STRINGS - 1 - s) / (STRINGS - 1)) * 1.6;
+    svgLine(svg, mLeft, y, mLeft + boardW, y,
       { stroke: cfg.stringColor, 'stroke-width': thickness });
   }
 
-  // Fret number label top-left when not in open position
+  // Position label below the board when not open position
   if (!isOpen) {
-    svgText(svg, 2, mTop + FH * 0.5, `${topFret}fr`,
-      { 'text-anchor': 'start', 'dominant-baseline': 'middle',
+    svgText(svg, mLeft + FW * 0.5, mTop + boardH + 11, `${minFret}fr`,
+      { 'text-anchor': 'middle', 'dominant-baseline': 'middle',
         'font-size': '9', 'font-family': 'monospace', fill: '#888' });
   }
 
-  // Symbols above the nut: × (mute) or coloured dot (open string)
+  // Left-of-nut symbols: × for muted, coloured dot for open string
   voicing.forEach((v, strIdx) => {
-    const x = mLeft + strIdx * SS;
-    const y = mTop - 10;
+    const x = mLeft - 10;
+    const y = strY(strIdx);
     if (v === null) {
       svgText(svg, x, y, '×',
         { 'text-anchor': 'middle', 'dominant-baseline': 'middle',
-          'font-size': '13', 'font-family': 'sans-serif', fill: '#777' });
+          'font-size': '11', 'font-family': 'sans-serif', fill: '#777' });
     } else if (v.fret === 0) {
       const color = degreeColor(v.degreeIndex, cfg);
-      svgCircle(svg, x, y, 6, { fill: color, stroke: '#fff', 'stroke-width': 1.5 });
+      svgCircle(svg, x, y, 6, { fill: color, stroke: '#fff', 'stroke-width': 1.2 });
       svgText(svg, x, y, degreeLabels[v.degreeIndex] ?? '',
         { 'text-anchor': 'middle', 'dominant-baseline': 'middle',
-          'font-size': '8', 'font-family': 'sans-serif', 'font-weight': 'bold',
+          'font-size': '7', 'font-family': 'sans-serif', 'font-weight': 'bold',
           fill: cfg.labelColor });
     }
   });
 
-  // Fretted dots
+  // Fretted note dots
   voicing.forEach((v, strIdx) => {
     if (v === null || v.fret === 0) return;
-    const x       = mLeft + strIdx * SS;
-    const diagFret = v.fret - topFret + 1;        // 1-indexed row in diagram
-    const y        = mTop + (diagFret - 0.5) * FH;
-    const color    = degreeColor(v.degreeIndex, cfg);
+    const fretPos = v.fret - minFret;              // 0-indexed from left edge
+    const x       = mLeft + (fretPos + 0.5) * FW;
+    const y       = strY(strIdx);
+    const color   = degreeColor(v.degreeIndex, cfg);
     svgCircle(svg, x, y, DR, { fill: color, stroke: '#fff', 'stroke-width': 1.5 });
     svgText(svg, x, y, degreeLabels[v.degreeIndex] ?? '',
       { 'text-anchor': 'middle', 'dominant-baseline': 'middle',
-        'font-size': '9', 'font-family': 'sans-serif', 'font-weight': 'bold',
+        'font-size': '8', 'font-family': 'sans-serif', 'font-weight': 'bold',
         fill: cfg.labelColor });
   });
 

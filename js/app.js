@@ -126,12 +126,7 @@ function renderPositionNav() {
 
     const diagEl = document.createElement('div');
     diagEl.className = 'voicing-diagram';
-    renderChordDiagram(diagEl, v.voicing, degrees, {
-      diagramFretCount:      4,
-      diagramStringSpacing:  18,
-      diagramFretHeight:     20,
-      diagramDotRadius:      8,
-    });
+    renderChordDiagram(diagEl, v.voicing, degrees);
 
     const lbl = document.createElement('div');
     lbl.className = 'voicing-card-label';
@@ -157,7 +152,7 @@ function renderPositionNav() {
 
 // Recompute voicings and refresh everything chord-related
 function fullChordRefresh() {
-  computeVoicings();
+  try { computeVoicings(); } catch (e) { console.error('computeVoicings failed:', e); state.voicings = []; }
   render();
   renderPositionNav();
 }
