@@ -115,7 +115,14 @@ export function filterByFretRange(positions, minFret, maxFret) {
  * Returns 0 if any chord tone is missing (hard gate).
  * Higher scores = more playable / more complete voicings.
  */
-export function scoreVoicing(voicing, targetPcs) {
+/**
+ * @param {Array} voicing
+ * @param {number[]} targetPcs
+ * @param {number|null} requiredBassPc  When non-null, the lowest sounding
+ *   string MUST have this pitch class (hard gate).  Use for inversions.
+ *   When null, a root-in-bass bonus is applied instead (default behaviour).
+ */
+export function scoreVoicing(voicing, targetPcs, requiredBassPc = null) {
   const active = voicing.filter(v => v !== null);
   if (active.length === 0) return 0;
 
@@ -124,6 +131,11 @@ export function scoreVoicing(voicing, targetPcs) {
   for (const pc of targetPcs) {
     if (!presentPcs.has(pc)) return 0;
   }
+
+  const lowestIdx = voicing.findIndex(v => v !== null);
+
+  // Hard gate: if a specific bass is required, enforce it now.
+  if (requiredBassPc !== null && voicing[lowestIdx].pc !== requiredBassPc) return 0;
 
   let score = 100 * targetPcs.length; // completeness base
 
@@ -140,10 +152,13 @@ export function scoreVoicing(voicing, targetPcs) {
     score += 20; // all open strings — ideal
   }
 
-  // Root note on the lowest sounding string
-  const lowestIdx = voicing.findIndex(v => v !== null);
-  if (lowestIdx !== -1 && voicing[lowestIdx].degreeIndex === 0) {
-    score += 30;
+  // Bass bonus
+  if (lowestIdx !== -1) {
+    if (requiredBassPc !== null) {
+      score += 30; // always satisfied — hard gate above ensures it
+    } else if (voicing[lowestIdx].degreeIndex === 0) {
+      score += 30; // root-in-bass bonus for unconstrained (root position) search
+    }
   }
 
   // No muted strings buried in the middle of the voicing
@@ -168,7 +183,7 @@ export function scoreVoicing(voicing, targetPcs) {
  * Tries every combination of candidate notes (one per string, or mute).
  * Returns null if no complete voicing exists in the window.
  */
-export function findBestVoicingInWindow(targetPcs, tuningSpec, windowStart = 0, windowSize = 4) {
+export function findBestVoicingInWindow(targetPcs, tuningSpec, windowStart = 0, windowSize = 4, requiredBassPc = null) {
   const map = buildFretboardMap(tuningSpec, windowStart + windowSize);
 
   // Collect candidate notes per string (plus null = mute)
@@ -191,7 +206,7 @@ export function findBestVoicingInWindow(targetPcs, tuningSpec, windowStart = 0, 
 
   function recurse(strIdx) {
     if (strIdx === 6) {
-      const score = scoreVoicing(current, targetPcs);
+      const score = scoreVoicing(current, targetPcs, requiredBassPc);
       if (score > bestScore) {
         bestScore   = score;
         bestVoicing = [...current];
@@ -214,12 +229,12 @@ export function findBestVoicingInWindow(targetPcs, tuningSpec, windowStart = 0, 
  * are deduplicated.  Returns an array of:
  *   { windowStart, voicing, score, cagedShape }
  */
-export function findVoicingsAcrossNeck(targetPcs, tuningSpec, maxFret = 22, windowSize = 4) {
+export function findVoicingsAcrossNeck(targetPcs, tuningSpec, maxFret = 22, windowSize = 4, requiredBassPc = null) {
   const results        = [];
   let lastFingerprint  = null;
 
   for (let ws = 0; ws <= maxFret - windowSize; ws++) {
-    const voicing = findBestVoicingInWindow(targetPcs, tuningSpec, ws, windowSize);
+    const voicing = findBestVoicingInWindow(targetPcs, tuningSpec, ws, windowSize, requiredBassPc);
     if (!voicing) continue;
 
     const fingerprint = voicing.map(v => v ? String(v.fret) : 'x').join(',');

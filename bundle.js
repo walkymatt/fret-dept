@@ -204,7 +204,7 @@ function findPositions(targetPcs, tuningSpec, maxFret = 12) {
   });
   return positions;
 }
-function scoreVoicing(voicing, targetPcs) {
+function scoreVoicing(voicing, targetPcs, requiredBassPc = null) {
   const active = voicing.filter((v) => v !== null);
   if (active.length === 0)
     return 0;
@@ -213,6 +213,9 @@ function scoreVoicing(voicing, targetPcs) {
     if (!presentPcs.has(pc))
       return 0;
   }
+  const lowestIdx = voicing.findIndex((v) => v !== null);
+  if (requiredBassPc !== null && voicing[lowestIdx].pc !== requiredBassPc)
+    return 0;
   let score = 100 * targetPcs.length;
   score += active.length * 10;
   const frettedFrets = active.filter((v) => v.fret > 0).map((v) => v.fret);
@@ -225,9 +228,12 @@ function scoreVoicing(voicing, targetPcs) {
   } else {
     score += 20;
   }
-  const lowestIdx = voicing.findIndex((v) => v !== null);
-  if (lowestIdx !== -1 && voicing[lowestIdx].degreeIndex === 0) {
-    score += 30;
+  if (lowestIdx !== -1) {
+    if (requiredBassPc !== null) {
+      score += 30;
+    } else if (voicing[lowestIdx].degreeIndex === 0) {
+      score += 30;
+    }
   }
   let first = -1, last = -1;
   for (let i = 0;i < voicing.length; i++) {
@@ -248,7 +254,7 @@ function scoreVoicing(voicing, targetPcs) {
     score += 10;
   return score;
 }
-function findBestVoicingInWindow(targetPcs, tuningSpec, windowStart = 0, windowSize = 4) {
+function findBestVoicingInWindow(targetPcs, tuningSpec, windowStart = 0, windowSize = 4, requiredBassPc = null) {
   const map = buildFretboardMap(tuningSpec, windowStart + windowSize);
   const candidates = map.map((stringFrets, strIdx) => {
     const hits = [];
@@ -268,7 +274,7 @@ function findBestVoicingInWindow(targetPcs, tuningSpec, windowStart = 0, windowS
   const current = new Array(6);
   function recurse(strIdx) {
     if (strIdx === 6) {
-      const score = scoreVoicing(current, targetPcs);
+      const score = scoreVoicing(current, targetPcs, requiredBassPc);
       if (score > bestScore) {
         bestScore = score;
         bestVoicing = [...current];
@@ -283,11 +289,11 @@ function findBestVoicingInWindow(targetPcs, tuningSpec, windowStart = 0, windowS
   recurse(0);
   return bestScore > 0 ? bestVoicing : null;
 }
-function findVoicingsAcrossNeck(targetPcs, tuningSpec, maxFret = 22, windowSize = 4) {
+function findVoicingsAcrossNeck(targetPcs, tuningSpec, maxFret = 22, windowSize = 4, requiredBassPc = null) {
   const results = [];
   let lastFingerprint = null;
   for (let ws = 0;ws <= maxFret - windowSize; ws++) {
-    const voicing = findBestVoicingInWindow(targetPcs, tuningSpec, ws, windowSize);
+    const voicing = findBestVoicingInWindow(targetPcs, tuningSpec, ws, windowSize, requiredBassPc);
     if (!voicing)
       continue;
     const fingerprint = voicing.map((v) => v ? String(v.fret) : "x").join(",");
@@ -618,13 +624,6 @@ var state = {
 function useFlats() {
   return state.rootName.includes("b");
 }
-function getVoicingBassPc(voicing, tuning) {
-  const played = voicing.filter(Boolean).sort((a, b) => a.string - b.string);
-  if (played.length === 0)
-    return null;
-  const bass = played[0];
-  return (tuning[bass.string - 1] + bass.fret) % 12;
-}
 function getChordScaleData() {
   const rootPc = nameToPc(state.rootName);
   const tuning = TUNINGS[state.tuningKey];
@@ -667,15 +666,8 @@ function computeVoicings() {
     return;
   }
   const { pitchClasses, tuning } = getChordScaleData();
-  const all = findVoicingsAcrossNeck(pitchClasses, tuning, VOICING_FRETS, 4);
-  if (state.inversion > 0 && state.inversion < pitchClasses.length) {
-    const targetBass = pitchClasses[state.inversion];
-    const filtered = all.filter((v) => getVoicingBassPc(v.voicing, tuning) === targetBass);
-    state.voicings = filtered.length > 0 ? filtered : all;
-  } else {
-    const rootBass = all.filter((v) => getVoicingBassPc(v.voicing, tuning) === pitchClasses[0]);
-    state.voicings = rootBass.length > 0 ? rootBass : all;
-  }
+  const bassPc = state.inversion > 0 && state.inversion < pitchClasses.length ? pitchClasses[state.inversion] : null;
+  state.voicings = findVoicingsAcrossNeck(pitchClasses, tuning, VOICING_FRETS, 4, bassPc);
   if (state.positionIndex >= state.voicings.length)
     state.positionIndex = 0;
 }

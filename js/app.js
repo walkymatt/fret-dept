@@ -40,14 +40,13 @@ function useFlats() { return state.rootName.includes('b'); }
 
 /**
  * Pitch class of the lowest-sounding string in a voicing.
- * voicing: array of {string, fret, degreeIndex} | null
+ * Voicing entries already carry a .pc field — no need to recompute from tuning.
  * string numbering: 1 = low E … 6 = high e
  */
-function getVoicingBassPc(voicing, tuning) {
+function getVoicingBassPc(voicing) {
   const played = voicing.filter(Boolean).sort((a, b) => a.string - b.string);
   if (played.length === 0) return null;
-  const bass = played[0];
-  return (tuning[bass.string - 1] + bass.fret) % 12;
+  return played[0].pc;
 }
 
 // ---------------------------------------------------------------------------
@@ -113,19 +112,12 @@ function render() {
 function computeVoicings() {
   if (state.mode !== 'chord') { state.voicings = []; return; }
   const { pitchClasses, tuning } = getChordScaleData();
-  const all = findVoicingsAcrossNeck(pitchClasses, tuning, VOICING_FRETS, 4);
-
-  // Filter by inversion (bass pitch class)
-  if (state.inversion > 0 && state.inversion < pitchClasses.length) {
-    const targetBass = pitchClasses[state.inversion];
-    const filtered = all.filter(v => getVoicingBassPc(v.voicing, tuning) === targetBass);
-    state.voicings = filtered.length > 0 ? filtered : all;
-  } else {
-    // Root position: prefer root-in-bass but don't exclude others
-    const rootBass = all.filter(v => getVoicingBassPc(v.voicing, tuning) === pitchClasses[0]);
-    state.voicings = rootBass.length > 0 ? rootBass : all;
-  }
-
+  // Pass the required bass pc into the search so the scorer hard-gates by it.
+  // null = unconstrained (root position): natural scoring already favours root-in-bass.
+  const bassPc = (state.inversion > 0 && state.inversion < pitchClasses.length)
+    ? pitchClasses[state.inversion]
+    : null;
+  state.voicings = findVoicingsAcrossNeck(pitchClasses, tuning, VOICING_FRETS, 4, bassPc);
   if (state.positionIndex >= state.voicings.length) state.positionIndex = 0;
 }
 
