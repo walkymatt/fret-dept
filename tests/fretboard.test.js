@@ -98,6 +98,9 @@ const A_PCS = [9, 1, 4];
 // D major pitch classes: D=2, F#=6, A=9
 const D_PCS = [2, 6, 9];
 
+// G major pitch classes: G=7, B=11, D=2
+const G_PCS = [7, 11, 2];
+
 // Hand-checked open voicings (x32010, x02220, xx0232, 022100)
 const C_OPEN_VOICING = [
   null,
@@ -128,11 +131,22 @@ const D_OPEN_VOICING = [
 
 const E_OPEN_VOICING = [
   pos(0, 0, 4, 0),  // low-E open      = E, root
-  pos(1, 2, 11, 2), // A string fret 2 = B
+  pos(1, 2, 11, 2), // A string fret 2 = B  (5th) ← distinguishes E shape from G shape
   pos(2, 2, 4, 0),  // D string fret 2 = E
   pos(3, 1, 8, 1),  // G string fret 1 = G#
   pos(4, 0, 11, 2), // B string open   = B
   pos(5, 0, 4, 0),  // high-e open     = E
+];
+
+// G major open (320003): G=7, B=11, D=2
+// A string carries the 3rd (B) ← distinguishes G shape from E shape
+const G_OPEN_VOICING = [
+  pos(0, 3,  7, 0),  // low-E fret 3  = G, root
+  pos(1, 2, 11, 1),  // A fret 2      = B, 3rd  ← key: 3rd on A → G shape
+  pos(2, 0,  2, 2),  // D open        = D, 5th
+  pos(3, 0,  7, 0),  // G open        = G, root
+  pos(4, 0, 11, 1),  // B open        = B, 3rd
+  pos(5, 3,  7, 0),  // high-e fret 3 = G, root
 ];
 
 // ---------------------------------------------------------------------------
@@ -178,6 +192,32 @@ describe('scoreVoicing()', () => {
       pos(5, 0, 4, 1),
     ];
     expect(scoreVoicing(C_OPEN_VOICING, C_PCS)).toBeGreaterThan(scoreVoicing(gapped, C_PCS));
+  });
+
+  // requiredBassPc
+  it('wrong requiredBassPc → 0 (hard gate)', () => {
+    // C_OPEN lowest sounding string = A string with C (pc 0); require E (pc 4) → gate fails
+    expect(scoreVoicing(C_OPEN_VOICING, C_PCS, 4)).toBe(0);
+  });
+  it('correct requiredBassPc → score > 0', () => {
+    // C_OPEN lowest string has C (pc 0); requiring C passes the gate
+    expect(scoreVoicing(C_OPEN_VOICING, C_PCS, 0)).toBeGreaterThan(0);
+  });
+  it('requiredBassPc=root gives same score as unconstrained (both award bass bonus)', () => {
+    // C_OPEN has root on lowest string, so both paths award the +30 bass bonus
+    expect(scoreVoicing(C_OPEN_VOICING, C_PCS, 0)).toBe(scoreVoicing(C_OPEN_VOICING, C_PCS));
+  });
+  it('null requiredBassPc still awards root-bass bonus over non-root bass', () => {
+    const thirdBassVoicing = [
+      null,
+      pos(1, 2, 4, 1),  // E (3rd) on A string — not the root
+      pos(2, 3, 0, 0),  // C (root) on D string
+      pos(3, 0, 7, 2),  // G on G string
+      null, null,
+    ];
+    expect(scoreVoicing(C_OPEN_VOICING, C_PCS)).toBeGreaterThan(
+      scoreVoicing(thirdBassVoicing, C_PCS)
+    );
   });
 });
 
@@ -226,6 +266,24 @@ describe('findBestVoicingInWindow()', () => {
     const pcs = new Set(v.filter(Boolean).map(x => x.pc));
     [9, 0, 4].forEach(pc => expect(pcs.has(pc)).toBe(true));
   });
+
+  // requiredBassPc
+  it('requiredBassPc=4: C 1st inv — lowest sounding string has pc 4 (E)', () => {
+    const v = findBestVoicingInWindow(C_PCS, STD, 0, 4, 4);
+    expect(v).not.toBeNull();
+    const played = v.filter(Boolean).sort((a, b) => a.string - b.string);
+    expect(played[0].pc).toBe(4);
+  });
+  it('requiredBassPc=7: C 2nd inv — lowest sounding string has pc 7 (G)', () => {
+    const v = findBestVoicingInWindow(C_PCS, STD, 0, 4, 7);
+    expect(v).not.toBeNull();
+    const played = v.filter(Boolean).sort((a, b) => a.string - b.string);
+    expect(played[0].pc).toBe(7);
+  });
+  it('requiredBassPc not in chord → null (impossible)', () => {
+    // F (pc 5) is not a chord tone of C major — no valid voicing can have F in the bass
+    expect(findBestVoicingInWindow(C_PCS, STD, 0, 4, 5)).toBeNull();
+  });
 });
 
 describe('findVoicingsAcrossNeck()', () => {
@@ -261,6 +319,29 @@ describe('findVoicingsAcrossNeck()', () => {
     const dim = [0, 3, 6]; // C diminished
     expect(findVoicingsAcrossNeck(dim, STD, 22, 4).length).toBeGreaterThanOrEqual(2);
   });
+
+  // requiredBassPc (inversion constraint)
+  it('requiredBassPc=11 (B): G 1st inv — every voicing has B on lowest string', () => {
+    const results = findVoicingsAcrossNeck(G_PCS, STD, 22, 4, 11);
+    expect(results.length).toBeGreaterThan(0);
+    results.forEach(({ voicing }) => {
+      const played = voicing.filter(Boolean).sort((a, b) => a.string - b.string);
+      expect(played[0].pc).toBe(11); // B
+    });
+  });
+  it('requiredBassPc=2 (D): G 2nd inv — every voicing has D on lowest string', () => {
+    const results = findVoicingsAcrossNeck(G_PCS, STD, 22, 4, 2);
+    expect(results.length).toBeGreaterThan(0);
+    results.forEach(({ voicing }) => {
+      const played = voicing.filter(Boolean).sort((a, b) => a.string - b.string);
+      expect(played[0].pc).toBe(2); // D
+    });
+  });
+  it('impossible requiredBassPc → empty result set', () => {
+    // Bb (pc 10) is not in C major — no voicing can satisfy the bass constraint
+    const results = findVoicingsAcrossNeck(C_PCS, STD, 22, 4, 10);
+    expect(results.length).toBe(0);
+  });
 });
 
 describe('identifyCagedShape()', () => {
@@ -273,8 +354,14 @@ describe('identifyCagedShape()', () => {
     const v = [null, pos(1,2,4,1), pos(2,0,7,2), null, null, null];
     expect(identifyCagedShape(v)).toBe(null);
   });
-  it('root on strIdx 0 → E regardless of other strings', () => {
-    const v = [pos(0,5,9,0), null, null, null, null, null];
+  it('G major open → G', () => expect(identifyCagedShape(G_OPEN_VOICING)).toBe('G'));
+  it('root on strIdx 0, 5th on A string → E (not G)', () => {
+    // E shape: A string carries the 5th.  E_OPEN_VOICING has B (5th of E) on A string.
+    expect(identifyCagedShape(E_OPEN_VOICING)).toBe('E');
+  });
+  it('root on strIdx 0, A and high-e both null → falls back to E (ambiguous)', () => {
+    // Without A-string or high-e info the shape cannot be distinguished; defaults to E.
+    const v = [pos(0, 5, 9, 0), null, null, null, null, null];
     expect(identifyCagedShape(v)).toBe('E');
   });
   it('A shape: root on strIdx 1, string 0 muted, inner strings same fret → A', () => {

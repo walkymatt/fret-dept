@@ -160,6 +160,31 @@ describe('getChordInversion()', () => {
   it('inv 1 C minor7: Eb bass → [3,7,10,0]',    () => { const r = getChordInversion(0,'minor7',1); expect(r.pitchClasses).toEqual([3,7,10,0]); expect(r.bassNote).toBe(3); });
   it('inv 3 C dom7: Bb bass → [10,0,4,7]',      () => { const r = getChordInversion(0,'dominant7',3); expect(r.pitchClasses).toEqual([10,0,4,7]); expect(r.bassNote).toBe(10); });
   it('all pcs remain in 0–11',                   () => expect(getChordInversion(9,'dominant7',2).pitchClasses.every(pc=>pc>=0&&pc<=11)).toBe(true));
+  it('power chord inv 1: 5th in bass',           () => {
+    const r = getChordInversion(0, 'power', 1);
+    expect(r.pitchClasses).toEqual([7, 0]);
+    expect(r.bassNote).toBe(7);
+    expect(r.degrees[0]).toBe('5');
+  });
+  it('power chord inv 2 wraps back to root pos', () => {
+    expect(getChordInversion(0, 'power', 2).pitchClasses).toEqual([0, 7]);
+  });
+  it('inv 1 bass always equals original pitchClasses[1] for every chord type', () => {
+    for (const chordName of Object.keys(CHORDS)) {
+      const { pitchClasses } = getChordPitchClasses(0, chordName);
+      const inv = getChordInversion(0, chordName, 1);
+      expect(inv.bassNote).toBe(pitchClasses[1]);
+      expect(inv.pitchClasses[0]).toBe(pitchClasses[1]);
+    }
+  });
+  it('inversion is a permutation: sorted pcs match root position for every chord type', () => {
+    for (const chordName of Object.keys(CHORDS)) {
+      const root = getChordInversion(0, chordName, 0);
+      const inv1 = getChordInversion(0, chordName, 1);
+      const sorted = (a) => [...a].sort((x, y) => x - y);
+      expect(sorted(inv1.pitchClasses)).toEqual(sorted(root.pitchClasses));
+    }
+  });
 });
 
 describe('relativeMinor()', () => {
