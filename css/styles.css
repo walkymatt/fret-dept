@@ -166,12 +166,14 @@ input[type="range"] {
   overflow-x: auto;
   box-shadow: var(--shadow);
   margin-bottom: 20px;
+  min-height: 220px;   /* prevent flex from collapsing the card */
+  flex-shrink: 0;      /* never let the flex column squeeze this */
 }
 
 #fretboard {
   display: block;
   width: 100%;
-  min-height: 120px;
+  min-height: 180px;
 }
 
 #fretboard svg {
