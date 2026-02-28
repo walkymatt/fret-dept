@@ -224,7 +224,7 @@ export function renderChordDiagram(container, voicing, degreeLabels = [], opts =
   const mTop    = 20;          // above top string — keeps open/mute symbols inside SVG
   const mLeft   = 22;          // left margin for × / open-string symbols
   const mRight  = 6;
-  const mBottom = 24;          // below bottom string for fret label
+  const mBottom = 30;          // below bottom string for fret label
 
   const boardW  = FRETS * FW;
   const boardH  = (STRINGS - 1) * SS;
@@ -277,7 +277,7 @@ export function renderChordDiagram(container, voicing, degreeLabels = [], opts =
 
   // Position label below the board when not open position
   if (!isOpen) {
-    svgText(svg, mLeft + FW * 0.5, mTop + boardH + 11, `${minFret}fr`,
+    svgText(svg, mLeft + FW * 0.5, mTop + boardH + 20, `${minFret}fr`,
       { 'text-anchor': 'middle', 'dominant-baseline': 'middle',
         'font-size': '9', 'font-family': 'monospace', fill: '#000' });
   }

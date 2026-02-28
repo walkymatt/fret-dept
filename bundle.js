@@ -498,7 +498,7 @@ function renderChordDiagram(container, voicing, degreeLabels = [], opts = {}) {
   const mTop = 20;
   const mLeft = 22;
   const mRight = 6;
-  const mBottom = 24;
+  const mBottom = 30;
   const boardW = FRETS * FW;
   const boardH = (STRINGS - 1) * SS;
   const svgW = mLeft + boardW + mRight;
@@ -532,7 +532,7 @@ function renderChordDiagram(container, voicing, degreeLabels = [], opts = {}) {
     svgLine(svg, mLeft, y, mLeft + boardW, y, { stroke: cfg.stringColor, "stroke-width": thickness });
   }
   if (!isOpen) {
-    svgText(svg, mLeft + FW * 0.5, mTop + boardH + 11, `${minFret}fr`, {
+    svgText(svg, mLeft + FW * 0.5, mTop + boardH + 20, `${minFret}fr`, {
       "text-anchor": "middle",
       "dominant-baseline": "middle",
       "font-size": "9",
