@@ -270,8 +270,17 @@ export function identifyCagedShape(voicing) {
 
   if (rootStrIdx === -1) return null;
 
-  // E shape: root on string 6 (strIdx 0, low E)
-  if (rootStrIdx === 0) return 'E';
+  // Root on string 1 (low E, strIdx 0) — distinguish E shape from G shape.
+  // E shape: A string (strIdx 1) carries the 5th  (degreeIndex 2), like open E/F barre.
+  // G shape: A string carries the 3rd (degreeIndex 1) or is muted — like open G chord.
+  if (rootStrIdx === 0) {
+    const aStr = voicing[1]; // A string
+    if (aStr !== null && aStr.degreeIndex === 2) return 'E'; // 5th on A → E shape
+    if (aStr !== null && aStr.degreeIndex === 1) return 'G'; // 3rd on A → G shape
+    // A muted: check for root on high-e (classic G-shape bracket)
+    if (voicing[1] === null && voicing[5] !== null && voicing[5].degreeIndex === 0) return 'G';
+    return 'E'; // fallback: root on low E without distinguishing info
+  }
 
   // A or C shape: root on string 5 (strIdx 1, A), string 6 muted
   if (rootStrIdx === 1 && voicing[0] === null) {

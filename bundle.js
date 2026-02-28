@@ -316,8 +316,16 @@ function identifyCagedShape(voicing) {
   }
   if (rootStrIdx === -1)
     return null;
-  if (rootStrIdx === 0)
+  if (rootStrIdx === 0) {
+    const aStr = voicing[1];
+    if (aStr !== null && aStr.degreeIndex === 2)
+      return "E";
+    if (aStr !== null && aStr.degreeIndex === 1)
+      return "G";
+    if (voicing[1] === null && voicing[5] !== null && voicing[5].degreeIndex === 0)
+      return "G";
     return "E";
+  }
   if (rootStrIdx === 1 && voicing[0] === null) {
     const inner = [voicing[2], voicing[3], voicing[4]].filter(Boolean);
     if (inner.length >= 2) {
