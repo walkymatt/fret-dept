@@ -1,5 +1,5 @@
 /* ============================================================
-   Guitar — pure CSS, no external dependencies
+   Guitar — minimal light theme
    ============================================================ */
 
 *, *::before, *::after {
@@ -9,19 +9,12 @@
 }
 
 :root {
-  --bg:          #1a1a2e;
-  --surface:     #16213e;
-  --panel:       #0f3460;
-  --accent:      #e94560;
-  --accent2:     #f5a623;
-  --text:        #e0e0e0;
-  --text-dim:    #888;
-  --border:      #2a3a5c;
-  --radius:      10px;
-  --shadow:      0 4px 24px rgba(0,0,0,0.5);
-  --font-ui:     'Segoe UI', system-ui, sans-serif;
-  --font-mono:   'Courier New', monospace;
-  --fret-bg:     #f5e6c8;
+  --bg:       #f5e6c8;
+  --text:     #000000;
+  --text-dim: #555555;
+  --accent:   #e74c3c;
+  --font-ui:  'Segoe UI', system-ui, sans-serif;
+  --font-mono:'Courier New', monospace;
 }
 
 html, body {
@@ -54,7 +47,7 @@ header h1 {
   font-size: 1.8rem;
   font-weight: 700;
   letter-spacing: -0.5px;
-  color: var(--accent2);
+  color: var(--text);
 }
 
 header p.subtitle {
@@ -67,16 +60,13 @@ header p.subtitle {
 .controls {
   width: 100%;
   max-width: 900px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 20px 24px;
+  padding: 20px 0;
   display: flex;
   flex-wrap: wrap;
   gap: 20px 32px;
   align-items: flex-end;
   margin-bottom: 24px;
-  box-shadow: var(--shadow);
+  border-bottom: 1px solid var(--text);
 }
 
 .control-group {
@@ -94,28 +84,27 @@ header p.subtitle {
   font-weight: 600;
 }
 
-select, input[type="range"] {
+select {
   background: var(--bg);
   color: var(--text);
-  border: 1px solid var(--border);
-  border-radius: 6px;
+  border: 1px solid var(--text);
+  border-radius: 0;
   padding: 7px 10px;
   font-size: 0.9rem;
   font-family: var(--font-ui);
   cursor: pointer;
   outline: none;
-  transition: border-color 0.15s;
   appearance: auto;
 }
 
-select:hover, select:focus {
-  border-color: var(--accent2);
-}
-
 input[type="range"] {
-  padding: 4px 0;
-  accent-color: var(--accent2);
+  display: block;
   width: 100%;
+  padding: 4px 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+  border: none;
+  background: transparent;
 }
 
 .toggle-row {
@@ -126,7 +115,7 @@ input[type="range"] {
 }
 
 .toggle-row input[type="checkbox"] {
-  accent-color: var(--accent2);
+  accent-color: var(--accent);
   width: 16px;
   height: 16px;
   cursor: pointer;
@@ -150,24 +139,20 @@ input[type="range"] {
 #display-title {
   font-size: 1.4rem;
   font-weight: 600;
-  color: var(--accent2);
+  color: var(--text);
   letter-spacing: -0.3px;
 }
 
-/* ---- Fretboard card ---- */
+/* ---- Fretboard ---- */
 
 .fretboard-card {
   width: 100%;
   max-width: 900px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 24px 20px 16px;
+  padding: 24px 0 16px;
   overflow-x: auto;
-  box-shadow: var(--shadow);
   margin-bottom: 20px;
-  min-height: 220px;   /* prevent flex from collapsing the card */
-  flex-shrink: 0;      /* never let the flex column squeeze this */
+  min-height: 220px;
+  flex-shrink: 0;
 }
 
 #fretboard {
@@ -188,11 +173,10 @@ input[type="range"] {
 .legend-card {
   width: 100%;
   max-width: 900px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 14px 20px;
-  box-shadow: var(--shadow);
+  padding: 14px 0;
+  border-top: 1px solid var(--text);
+  border-bottom: 1px solid var(--text);
+  margin-bottom: 24px;
 }
 
 .legend-heading {
@@ -222,7 +206,7 @@ input[type="range"] {
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  border: 2px solid rgba(255,255,255,0.15);
+  border: 1px solid var(--text);
   flex-shrink: 0;
 }
 
@@ -235,11 +219,7 @@ input[type="range"] {
 .position-nav-card {
   width: 100%;
   max-width: 900px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 14px 20px;
-  box-shadow: var(--shadow);
+  padding: 14px 0;
   margin-bottom: 12px;
 }
 
@@ -266,10 +246,10 @@ input[type="range"] {
 }
 
 .pos-btn {
-  background: var(--panel);
+  background: var(--bg);
   color: var(--text);
-  border: 1px solid var(--border);
-  border-radius: 6px;
+  border: 1px solid var(--text);
+  border-radius: 0;
   width: 30px;
   height: 30px;
   font-size: 0.75rem;
@@ -277,14 +257,13 @@ input[type="range"] {
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background 0.15s, border-color 0.15s;
   line-height: 1;
+  transition: background 0.1s, color 0.1s;
 }
 
 .pos-btn:hover:not(:disabled) {
-  background: var(--accent2);
-  border-color: var(--accent2);
-  color: #000;
+  background: var(--text);
+  color: var(--bg);
 }
 
 .pos-btn:disabled {
@@ -295,7 +274,7 @@ input[type="range"] {
 .pos-label {
   font-size: 0.95rem;
   font-weight: 600;
-  color: var(--accent2);
+  color: var(--text);
   min-width: 120px;
   text-align: center;
 }
@@ -319,17 +298,14 @@ input[type="range"] {
   scroll-snap-type: x mandatory;
   -webkit-overflow-scrolling: touch;
   padding-bottom: 6px;
-  min-height: 290px;     /* never collapse below one card row */
+  min-height: 290px;
   flex-shrink: 0;
 }
 
 .voicing-card {
   flex: 0 0 calc(33.333% - 8px);
   min-width: 0;
-  min-height: 250px;     /* keep card visible even if SVG struggles */
-  background: var(--surface);
-  border: 2px solid var(--border);
-  border-radius: var(--radius);
+  min-height: 250px;
   padding: 10px 10px 6px;
   cursor: pointer;
   display: flex;
@@ -337,8 +313,10 @@ input[type="range"] {
   align-items: center;
   gap: 4px;
   scroll-snap-align: start;
-  transition: border-color 0.15s, background 0.15s;
-  box-shadow: var(--shadow);
+}
+
+.voicing-card.active {
+  border: 1px solid var(--text);
 }
 
 .voicing-diagram {
@@ -347,17 +325,6 @@ input[type="range"] {
   display: flex;
   align-items: center;
   justify-content: center;
-}
-
-.voicing-card:hover {
-  border-color: var(--accent2);
-  background: var(--panel);
-}
-
-.voicing-card.active {
-  border-color: var(--accent);
-  background: var(--panel);
-  box-shadow: 0 0 0 2px rgba(233,69,96,0.3), var(--shadow);
 }
 
 .voicing-diagram svg {
@@ -379,7 +346,5 @@ input[type="range"] {
 
 @media (max-width: 640px) {
   header h1 { font-size: 1.4rem; }
-  .controls { padding: 16px; gap: 16px; }
-  .fretboard-card { padding: 16px 12px 12px; }
-  .voicing-gallery { gap: 8px; }
+  .controls { padding: 16px 0; gap: 16px; }
 }

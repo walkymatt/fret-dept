@@ -342,22 +342,22 @@ var DEFAULTS = {
   openDotRadius: 10,
   degreeColors: [
     "#e74c3c",
-    "#2980b9",
-    "#27ae60",
-    "#8e44ad",
-    "#f39c12",
-    "#16a085",
-    "#d35400",
-    "#2c3e50",
-    "#c0392b",
-    "#1abc9c"
+    "#f5e6c8",
+    "#f5e6c8",
+    "#f5e6c8",
+    "#f5e6c8",
+    "#f5e6c8",
+    "#f5e6c8",
+    "#f5e6c8",
+    "#f5e6c8",
+    "#f5e6c8"
   ],
   fretboardColor: "#f5e6c8",
   fretColor: "#8b7355",
   stringColor: "#4a3728",
   nutColor: "#2c1810",
   markerColor: "#d4b896",
-  labelColor: "#ffffff"
+  labelColor: "#000000"
 };
 var INLAY_FRETS = [3, 5, 7, 9, 12];
 var DOUBLE_INLAY_FRET = 12;
@@ -409,8 +409,8 @@ function renderFretboard(container, positions, degreeLabels = [], opts = {}) {
       return;
     const cx = cfg.marginLeft + (f - 0.5) * cfg.fretWidth;
     if (f === DOUBLE_INLAY_FRET) {
-      svgCircle(svg, cx, cfg.marginTop + cfg.stringSpacing, 5, { fill: cfg.markerColor });
-      svgCircle(svg, cx, cfg.marginTop + boardHeight - cfg.stringSpacing, 5, { fill: cfg.markerColor });
+      svgCircle(svg, cx, cfg.marginTop + 1.5 * cfg.stringSpacing, 5, { fill: cfg.markerColor });
+      svgCircle(svg, cx, cfg.marginTop + boardHeight - 1.5 * cfg.stringSpacing, 5, { fill: cfg.markerColor });
     } else {
       svgCircle(svg, cx, cfg.marginTop + boardHeight / 2, 5, { fill: cfg.markerColor });
     }
@@ -431,7 +431,7 @@ function renderFretboard(container, positions, degreeLabels = [], opts = {}) {
       "dominant-baseline": "middle",
       "font-size": "11",
       "font-family": "monospace",
-      fill: "#888"
+      fill: "#555"
     });
   }
   const openByString = new Map;
@@ -445,7 +445,7 @@ function renderFretboard(container, positions, degreeLabels = [], opts = {}) {
     }
   });
   const activeKeys = cfg.activeKeys instanceof Set ? cfg.activeKeys : new Set;
-  const activeRingColor = cfg.activeRingColor ?? "#f5a623";
+  const activeRingColor = cfg.activeRingColor ?? "#000000";
   openByString.forEach((pos, strNum) => {
     const x = cfg.marginLeft - cfg.nutWidth - cfg.openDotRadius - 4;
     const y = stringY(strNum - 1, strCount, cfg);
@@ -454,7 +454,7 @@ function renderFretboard(container, positions, degreeLabels = [], opts = {}) {
     if (active) {
       svgCircle(svg, x, y, cfg.openDotRadius + 5, { fill: "none", stroke: activeRingColor, "stroke-width": 2.5 });
     }
-    svgCircle(svg, x, y, cfg.openDotRadius, { fill: color, stroke: "#fff", "stroke-width": 1.5 });
+    svgCircle(svg, x, y, cfg.openDotRadius, { fill: color, stroke: "#000", "stroke-width": 1.5 });
     svgText(svg, x, y, degreeLabels[pos.degreeIndex] ?? "", {
       "text-anchor": "middle",
       "dominant-baseline": "middle",
@@ -472,7 +472,7 @@ function renderFretboard(container, positions, degreeLabels = [], opts = {}) {
     if (active) {
       svgCircle(svg, x, y, cfg.dotRadius + 5, { fill: "none", stroke: activeRingColor, "stroke-width": 2.5 });
     }
-    svgCircle(svg, x, y, cfg.dotRadius, { fill: color, stroke: "#fff", "stroke-width": 1.5 });
+    svgCircle(svg, x, y, cfg.dotRadius, { fill: color, stroke: "#000", "stroke-width": 1.5 });
     svgText(svg, x, y, degreeLabels[pos.degreeIndex] ?? "", {
       "text-anchor": "middle",
       "dominant-baseline": "middle",
@@ -535,7 +535,7 @@ function renderChordDiagram(container, voicing, degreeLabels = [], opts = {}) {
       "dominant-baseline": "middle",
       "font-size": "9",
       "font-family": "monospace",
-      fill: "#888"
+      fill: "#000"
     });
   }
   voicing.forEach((v, strIdx) => {
@@ -547,11 +547,11 @@ function renderChordDiagram(container, voicing, degreeLabels = [], opts = {}) {
         "dominant-baseline": "middle",
         "font-size": "11",
         "font-family": "sans-serif",
-        fill: "#777"
+        fill: "#000"
       });
     } else if (v.fret === 0) {
       const color = degreeColor(v.degreeIndex, cfg);
-      svgCircle(svg, x, y, 6, { fill: color, stroke: "#fff", "stroke-width": 1.2 });
+      svgCircle(svg, x, y, 6, { fill: color, stroke: "#000", "stroke-width": 1.2 });
       svgText(svg, x, y, degreeLabels[v.degreeIndex] ?? "", {
         "text-anchor": "middle",
         "dominant-baseline": "middle",
@@ -569,7 +569,7 @@ function renderChordDiagram(container, voicing, degreeLabels = [], opts = {}) {
     const x = mLeft + (fretPos + 0.5) * FW;
     const y = strY(strIdx);
     const color = degreeColor(v.degreeIndex, cfg);
-    svgCircle(svg, x, y, DR, { fill: color, stroke: "#fff", "stroke-width": 1.5 });
+    svgCircle(svg, x, y, DR, { fill: color, stroke: "#000", "stroke-width": 1.5 });
     svgText(svg, x, y, degreeLabels[v.degreeIndex] ?? "", {
       "text-anchor": "middle",
       "dominant-baseline": "middle",

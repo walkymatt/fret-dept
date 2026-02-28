@@ -15,16 +15,18 @@ const DEFAULTS = {
   nutWidth:        6,
   fretLineWidth:   1.5,
   openDotRadius:   10,
+  // Root note (index 0) filled red; all other degrees transparent/background.
   degreeColors: [
-    '#e74c3c', '#2980b9', '#27ae60', '#8e44ad', '#f39c12',
-    '#16a085', '#d35400', '#2c3e50', '#c0392b', '#1abc9c',
+    '#e74c3c',
+    '#f5e6c8', '#f5e6c8', '#f5e6c8', '#f5e6c8',
+    '#f5e6c8', '#f5e6c8', '#f5e6c8', '#f5e6c8', '#f5e6c8',
   ],
   fretboardColor: '#f5e6c8',
   fretColor:      '#8b7355',
   stringColor:    '#4a3728',
   nutColor:       '#2c1810',
   markerColor:    '#d4b896',
-  labelColor:     '#ffffff',
+  labelColor:     '#000000',
 };
 
 const INLAY_FRETS       = [3, 5, 7, 9, 12];
@@ -100,8 +102,9 @@ export function renderFretboard(container, positions, degreeLabels = [], opts = 
     if (f > fretCount) return;
     const cx = cfg.marginLeft + (f - 0.5) * cfg.fretWidth;
     if (f === DOUBLE_INLAY_FRET) {
-      svgCircle(svg, cx, cfg.marginTop + cfg.stringSpacing,               5, { fill: cfg.markerColor });
-      svgCircle(svg, cx, cfg.marginTop + boardHeight - cfg.stringSpacing, 5, { fill: cfg.markerColor });
+      // Place dots midway between adjacent string pairs, not at string lines
+      svgCircle(svg, cx, cfg.marginTop + 1.5 * cfg.stringSpacing,               5, { fill: cfg.markerColor });
+      svgCircle(svg, cx, cfg.marginTop + boardHeight - 1.5 * cfg.stringSpacing, 5, { fill: cfg.markerColor });
     } else {
       svgCircle(svg, cx, cfg.marginTop + boardHeight / 2, 5, { fill: cfg.markerColor });
     }
@@ -135,7 +138,7 @@ export function renderFretboard(container, positions, degreeLabels = [], opts = 
       cfg.marginTop + boardHeight + 20,
       String(f),
       { 'text-anchor': 'middle', 'dominant-baseline': 'middle',
-        'font-size': '11', 'font-family': 'monospace', fill: '#888' });
+        'font-size': '11', 'font-family': 'monospace', fill: '#555' });
   }
 
   // Separate open-string from fretted positions
@@ -151,8 +154,8 @@ export function renderFretboard(container, positions, degreeLabels = [], opts = 
 
   // activeKeys: Set of "string:fret" strings marking the selected voicing.
   // Active positions receive a gold highlight ring drawn behind the dot.
-  const activeKeys = cfg.activeKeys instanceof Set ? cfg.activeKeys : new Set();
-  const activeRingColor = cfg.activeRingColor ?? '#f5a623';
+  const activeKeys      = cfg.activeKeys instanceof Set ? cfg.activeKeys : new Set();
+  const activeRingColor = cfg.activeRingColor ?? '#000000';
 
   // Open-string dots (left of nut)
   openByString.forEach((pos, strNum) => {
@@ -165,7 +168,7 @@ export function renderFretboard(container, positions, degreeLabels = [], opts = 
         { fill: 'none', stroke: activeRingColor, 'stroke-width': 2.5 });
     }
     svgCircle(svg, x, y, cfg.openDotRadius,
-      { fill: color, stroke: '#fff', 'stroke-width': 1.5 });
+      { fill: color, stroke: '#000', 'stroke-width': 1.5 });
     svgText(svg, x, y, degreeLabels[pos.degreeIndex] ?? '',
       { 'text-anchor': 'middle', 'dominant-baseline': 'middle',
         'font-size': '10', 'font-family': 'sans-serif', 'font-weight': 'bold',
@@ -183,7 +186,7 @@ export function renderFretboard(container, positions, degreeLabels = [], opts = 
         { fill: 'none', stroke: activeRingColor, 'stroke-width': 2.5 });
     }
     svgCircle(svg, x, y, cfg.dotRadius,
-      { fill: color, stroke: '#fff', 'stroke-width': 1.5 });
+      { fill: color, stroke: '#000', 'stroke-width': 1.5 });
     svgText(svg, x, y, degreeLabels[pos.degreeIndex] ?? '',
       { 'text-anchor': 'middle', 'dominant-baseline': 'middle',
         'font-size': '11', 'font-family': 'sans-serif', 'font-weight': 'bold',
@@ -270,7 +273,7 @@ export function renderChordDiagram(container, voicing, degreeLabels = [], opts =
   if (!isOpen) {
     svgText(svg, mLeft + FW * 0.5, mTop + boardH + 11, `${minFret}fr`,
       { 'text-anchor': 'middle', 'dominant-baseline': 'middle',
-        'font-size': '9', 'font-family': 'monospace', fill: '#888' });
+        'font-size': '9', 'font-family': 'monospace', fill: '#000' });
   }
 
   // Left-of-nut symbols: × for muted, coloured dot for open string
@@ -280,10 +283,10 @@ export function renderChordDiagram(container, voicing, degreeLabels = [], opts =
     if (v === null) {
       svgText(svg, x, y, '×',
         { 'text-anchor': 'middle', 'dominant-baseline': 'middle',
-          'font-size': '11', 'font-family': 'sans-serif', fill: '#777' });
+          'font-size': '11', 'font-family': 'sans-serif', fill: '#000' });
     } else if (v.fret === 0) {
       const color = degreeColor(v.degreeIndex, cfg);
-      svgCircle(svg, x, y, 6, { fill: color, stroke: '#fff', 'stroke-width': 1.2 });
+      svgCircle(svg, x, y, 6, { fill: color, stroke: '#000', 'stroke-width': 1.2 });
       svgText(svg, x, y, degreeLabels[v.degreeIndex] ?? '',
         { 'text-anchor': 'middle', 'dominant-baseline': 'middle',
           'font-size': '7', 'font-family': 'sans-serif', 'font-weight': 'bold',
@@ -298,7 +301,7 @@ export function renderChordDiagram(container, voicing, degreeLabels = [], opts =
     const x       = mLeft + (fretPos + 0.5) * FW;
     const y       = strY(strIdx);
     const color   = degreeColor(v.degreeIndex, cfg);
-    svgCircle(svg, x, y, DR, { fill: color, stroke: '#fff', 'stroke-width': 1.5 });
+    svgCircle(svg, x, y, DR, { fill: color, stroke: '#000', 'stroke-width': 1.5 });
     svgText(svg, x, y, degreeLabels[v.degreeIndex] ?? '',
       { 'text-anchor': 'middle', 'dominant-baseline': 'middle',
         'font-size': '8', 'font-family': 'sans-serif', 'font-weight': 'bold',
