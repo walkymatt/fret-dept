@@ -621,12 +621,24 @@ function renderChordDiagram(container, voicing, degreeLabels = [], opts = {}) {
   const svgH = mTop + boardH + mBottom;
   const strY = (s) => mTop + (STRINGS - 1 - s) * SS;
   let minFret = Infinity;
+  let maxFret = 0;
+  let hasOpenStrings = false;
   for (const v of voicing) {
-    if (v !== null && v.fret > 0 && v.fret < minFret)
+    if (v === null)
+      continue;
+    if (v.fret === 0) {
+      hasOpenStrings = true;
+      continue;
+    }
+    if (v.fret < minFret)
       minFret = v.fret;
+    if (v.fret > maxFret)
+      maxFret = v.fret;
   }
   if (minFret === Infinity)
     minFret = 0;
+  if (hasOpenStrings && maxFret <= FRETS && minFret > 1)
+    minFret = 1;
   const isOpen = minFret <= 1;
   const svg = attrs(ns("svg"), {
     viewBox: `0 0 ${svgW} ${svgH}`,

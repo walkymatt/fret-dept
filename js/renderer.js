@@ -239,12 +239,23 @@ export function renderChordDiagram(container, voicing, degreeLabels = [], opts =
   // String y: strIdx 0 (low E) at BOTTOM, strIdx 5 (high e) at TOP
   const strY = s => mTop + (STRINGS - 1 - s) * SS;
 
-  // Min fretted note → determines left edge of the diagram window
+  // Min/max fretted note (excludes open strings and muted strings)
   let minFret = Infinity;
+  let maxFret = 0;
+  let hasOpenStrings = false;
   for (const v of voicing) {
-    if (v !== null && v.fret > 0 && v.fret < minFret) minFret = v.fret;
+    if (v === null) continue;
+    if (v.fret === 0) { hasOpenStrings = true; continue; }
+    if (v.fret < minFret) minFret = v.fret;
+    if (v.fret > maxFret) maxFret = v.fret;
   }
   if (minFret === Infinity) minFret = 0;
+
+  // If the chord has open strings and every fretted note fits within FRETS
+  // slots of the nut (fret ≤ FRETS), anchor at fret 1 so the nut is shown.
+  // E.g. open G (frets 3-2-0-0-0-3) renders from the nut rather than fr 2.
+  if (hasOpenStrings && maxFret <= FRETS && minFret > 1) minFret = 1;
+
   const isOpen = minFret <= 1;   // nut visible; fret 0 = open strings
 
   const svg = attrs(ns('svg'), {
