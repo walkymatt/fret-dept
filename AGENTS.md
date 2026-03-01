@@ -94,9 +94,7 @@ make test    # runs: bun test tests/
 ```
 
 ## Future ideas
-- Chord diagram view (vertical, first-position only)
-- Position / CAGED system highlighting
-- Side-by-side scale vs chord comparison
-- Relative minor/major quick-switch button
+
+- Suggested fingerings for chords
 - Note audio playback (Web Audio API)
-- Diatonic chord browser for a key
+
