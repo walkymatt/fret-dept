@@ -258,7 +258,7 @@ function findBestVoicingInWindow(targetPcs, tuningSpec, windowStart = 0, windowS
   const map = buildFretboardMap(tuningSpec, windowStart + windowSize);
   const candidates = map.map((stringFrets, strIdx) => {
     const hits = [];
-    for (let fret = windowStart;fret <= windowStart + windowSize; fret++) {
+    for (let fret = windowStart;fret < windowStart + windowSize; fret++) {
       if (fret >= stringFrets.length)
         break;
       const pc = pitchClass(stringFrets[fret]);

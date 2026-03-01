@@ -91,7 +91,7 @@ export function findBoxVoicing(targetPcs, tuningSpec, windowStart = 0, windowSiz
   map.forEach((stringFrets, strIdx) => {
     const hit = stringFrets
       .map((midi, fret) => ({ fret, midi, pc: pitchClass(midi) }))
-      .filter(({ fret }) => fret >= windowStart && fret <= windowStart + windowSize)
+      .filter(({ fret }) => fret >= windowStart && fret < windowStart + windowSize)
       .find(({ pc }) => targetPcs.includes(pc));
 
     voicing.push(hit
@@ -189,7 +189,7 @@ export function findBestVoicingInWindow(targetPcs, tuningSpec, windowStart = 0, 
   // Collect candidate notes per string (plus null = mute)
   const candidates = map.map((stringFrets, strIdx) => {
     const hits = [];
-    for (let fret = windowStart; fret <= windowStart + windowSize; fret++) {
+    for (let fret = windowStart; fret < windowStart + windowSize; fret++) {
       if (fret >= stringFrets.length) break;
       const pc = pitchClass(stringFrets[fret]);
       const di = targetPcs.indexOf(pc);
