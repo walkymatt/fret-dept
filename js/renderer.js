@@ -342,42 +342,18 @@ export function renderChordDiagram(container, voicing, degreeLabels = [], opts =
 
   // ── Fingering overlays ────────────────────────────────────────────────────
   if (fingering) {
-    const badgeColorFor = f =>
-      f === '?' ? '#e74c3c' :   // impossible — red
-      f === 'T' ? '#8e44ad' :   // thumb       — purple
-      '#2c3e50';                 // 1–4         — dark slate
-
     const COL_X = FCOL_W / 2;   // centre of the finger-number column
 
-    // ── Left column badges ────────────────────────────────────────────────
-    // One badge per non-muted string aligned to its string Y.
-    // Fretted notes → finger number; open strings → 'o'; muted → nothing.
+    // ── Left column labels ────────────────────────────────────────────────
+    // Plain text, no circles. Open strings grey ('o'), everything else black.
     voicing.forEach((v, strIdx) => {
       const f = fingering.fingers[strIdx];
       if (f === null) return;    // muted — already shown by ×
-
-      const cy    = strY(strIdx);
-      const label = f === 0 ? 'o' : String(f);
-      const bc    = f === 0 ? '#777' : badgeColorFor(f);
-      svgCircle(svg, COL_X, cy, 5.5, { fill: bc, stroke: '#fff', 'stroke-width': 0.8 });
-      svgText(svg, COL_X, cy, label,
+      svgText(svg, COL_X, strY(strIdx), f === 0 ? 'o' : String(f),
         { 'text-anchor': 'middle', 'dominant-baseline': 'middle',
-          'font-size': '6.5', 'font-family': 'monospace', 'font-weight': 'bold',
-          fill: '#fff' });
+          'font-size': '8', 'font-family': 'monospace', 'font-weight': 'bold',
+          fill: f === 0 ? '#999' : '#000' });
     });
-
-    // ── C: Difficulty badge — top-right corner ───────────────────────────────
-    const diffColor = fingering.difficulty <= 2 ? '#27ae60'
-                    : fingering.difficulty <= 3  ? '#e67e22'
-                    : '#e74c3c';
-    const diffLabel = fingering.impossible ? '!' : String(fingering.difficulty);
-    const dx = svgW - 7;
-    const dy = 9;
-    svgCircle(svg, dx, dy, 6.5, { fill: diffColor });
-    svgText(svg, dx, dy, diffLabel,
-      { 'text-anchor': 'middle', 'dominant-baseline': 'middle',
-        'font-size': '7', 'font-family': 'monospace', 'font-weight': 'bold',
-        fill: '#fff' });
   }
 
   container.innerHTML = '';
