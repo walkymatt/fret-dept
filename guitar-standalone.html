@@ -1952,6 +1952,7 @@ function computeVoicings() {
   const { pitchClasses, tuning } = getChordScaleData();
   const bassPc = state.inversion > 0 && state.inversion < pitchClasses.length ? pitchClasses[state.inversion] : null;
   const raw = findVoicingsAcrossNeck(pitchClasses, tuning, VOICING_FRETS, 4, bassPc);
+  const seen = new Set;
   state.voicings = raw.map((v) => {
     const f = assignFingering(v.voicing);
     if (!f.impossible)
@@ -1960,7 +1961,13 @@ function computeVoicings() {
     if (fixed === null)
       return null;
     return { ...v, voicing: fixed };
-  }).filter(Boolean);
+  }).filter(Boolean).filter((v) => {
+    const key = v.voicing.map((n) => n === null ? "x" : n.fret).join(",");
+    if (seen.has(key))
+      return false;
+    seen.add(key);
+    return true;
+  });
   if (state.positionIndex >= state.voicings.length)
     state.positionIndex = 0;
 }

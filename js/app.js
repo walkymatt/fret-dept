@@ -159,13 +159,21 @@ function computeVoicings() {
   const bassPc = (state.inversion > 0 && state.inversion < pitchClasses.length)
     ? pitchClasses[state.inversion] : null;
   const raw = findVoicingsAcrossNeck(pitchClasses, tuning, VOICING_FRETS, 4, bassPc);
+  const seen = new Set();
   state.voicings = raw.map(v => {
     const f = assignFingering(v.voicing);
     if (!f.impossible) return v;                                 // already fine
     const fixed = fixImpossibleVoicing(v.voicing, pitchClasses, bassPc);
     if (fixed === null) return null;                             // drop it
     return { ...v, voicing: fixed };                            // use trimmed
-  }).filter(Boolean);
+  }).filter(Boolean).filter(v => {
+    // Deduplicate: two voicings are identical when every string has the same
+    // fret value (or both null).  Keep only the first occurrence.
+    const key = v.voicing.map(n => n === null ? 'x' : n.fret).join(',');
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
   if (state.positionIndex >= state.voicings.length) state.positionIndex = 0;
 }
 
