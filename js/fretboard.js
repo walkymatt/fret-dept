@@ -322,6 +322,47 @@ export function findScalePositions(targetPcs, tuningSpec, maxFret = 22) {
 
     if (!notes) continue;   // no valid assignment found for this anchor
 
+    // ── Connectivity trim ────────────────────────────────────────────────
+    // Notes must form a gapless ascending scale run across strings.  When the
+    // transition from string S to string S+1 skips one or more scale degrees,
+    // the fragments are disconnected.  Keep the longest contiguous run of
+    // strings that together still cover every scale degree (≥ one octave).
+    // Drop the whole diagram if no such run exists.
+    {
+      const N = targetPcs.length;
+
+      // Group by string; sort each group by fret (ascending pitch on string)
+      const byStr = new Map();
+      notes.forEach(n => {
+        if (!byStr.has(n.string)) byStr.set(n.string, []);
+        byStr.get(n.string).push(n);
+      });
+      byStr.forEach(ns => ns.sort((a, b) => a.fret - b.fret));
+
+      const active = [1, 2, 3, 4, 5, 6].filter(s => byStr.has(s));
+
+      // connected[i] = true iff active[i]→active[i+1] has no degree gap
+      const connected = active.slice(0, -1).map((s, i) => {
+        const last  = byStr.get(s).at(-1).degreeIndex;
+        const first = byStr.get(active[i + 1])[0].degreeIndex;
+        return first === (last + 1) % N;
+      });
+
+      // Find longest contiguous connected sub-range covering all degrees
+      let best = null, bestLen = 0;
+      for (let i = 0; i < active.length; i++) {
+        for (let j = i; j < active.length; j++) {
+          if (j > i && !connected[j - 1]) break;   // hit a disconnection
+          const run = active.slice(i, j + 1).flatMap(s => byStr.get(s));
+          const present = new Set(run.map(n => n.pc));
+          if (!targetPcs.every(pc => present.has(pc))) continue;
+          if (j - i + 1 > bestLen) { bestLen = j - i + 1; best = run; }
+        }
+      }
+      if (!best) continue;   // no complete-octave connected run — drop diagram
+      notes = best;
+    }
+
     // Deduplicate by exact fingering fingerprint
     const fp = notes.map(n => `${n.string}:${n.fret}`).join(',');
     if (seen.has(fp)) continue;

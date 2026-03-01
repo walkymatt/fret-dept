@@ -361,6 +361,40 @@ function findScalePositions(targetPcs, tuningSpec, maxFret = 22) {
     }
     if (!notes)
       continue;
+    {
+      const N = targetPcs.length;
+      const byStr = new Map;
+      notes.forEach((n) => {
+        if (!byStr.has(n.string))
+          byStr.set(n.string, []);
+        byStr.get(n.string).push(n);
+      });
+      byStr.forEach((ns) => ns.sort((a, b) => a.fret - b.fret));
+      const active = [1, 2, 3, 4, 5, 6].filter((s) => byStr.has(s));
+      const connected = active.slice(0, -1).map((s, i) => {
+        const last = byStr.get(s).at(-1).degreeIndex;
+        const first = byStr.get(active[i + 1])[0].degreeIndex;
+        return first === (last + 1) % N;
+      });
+      let best = null, bestLen = 0;
+      for (let i = 0;i < active.length; i++) {
+        for (let j = i;j < active.length; j++) {
+          if (j > i && !connected[j - 1])
+            break;
+          const run = active.slice(i, j + 1).flatMap((s) => byStr.get(s));
+          const present = new Set(run.map((n) => n.pc));
+          if (!targetPcs.every((pc) => present.has(pc)))
+            continue;
+          if (j - i + 1 > bestLen) {
+            bestLen = j - i + 1;
+            best = run;
+          }
+        }
+      }
+      if (!best)
+        continue;
+      notes = best;
+    }
     const fp = notes.map((n) => `${n.string}:${n.fret}`).join(",");
     if (seen.has(fp))
       continue;
