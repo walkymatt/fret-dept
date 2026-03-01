@@ -258,94 +258,44 @@ export function findVoicingsAcrossNeck(targetPcs, tuningSpec, maxFret = 22, wind
  * Returns an array of { windowStart, windowSize, notes } where notes is
  * an array of { string, fret, pc, degreeIndex }.
  *
- * Two route types are generated per anchor:
- *   – 2-NPS (2 consecutive scale notes per string, CAGED-style)
- *   – 3-NPS (3 consecutive scale notes per string, fuller coverage)
- * Duplicate routes are removed and results are sorted by windowStart.
+ * Strategy: anchor each position on a scale tone that falls on the lowest
+ * string (frets 0–12).  For each anchor, collect every scale note within a
+ * fixed 4-fret window [anchor, anchor+3] on all six strings.  Only keep
+ * positions where all scale degrees are present in the window.
  */
 export function findScalePositions(targetPcs, tuningSpec, maxFret = 22) {
-  const map = buildFretboardMap(tuningSpec, maxFret);
-
-  const allRoutes = [
-    ...buildScaleRoutes(targetPcs, map, maxFret, 2),
-    ...buildScaleRoutes(targetPcs, map, maxFret, 3),
-  ];
-
-  // Global deduplication (a 2-NPS and 3-NPS route might be identical when
-  // fewer notes are available), then sort by position then by note count.
-  const seen = new Set();
-  return allRoutes
-    .filter(r => {
-      const fp = r.notes.map(n => `${n.string}:${n.fret}`).join(',');
-      if (seen.has(fp)) return false;
-      seen.add(fp);
-      return true;
-    })
-    .sort((a, b) =>
-      a.windowStart !== b.windowStart
-        ? a.windowStart - b.windowStart
-        : a.notes.length - b.notes.length   // 2-NPS before 3-NPS at same position
-    );
-}
-
-/**
- * Build scale routes anchored on scale tones of the lowest string (frets 0–12).
- * For each anchor, every string receives up to `notesPerString` consecutive
- * scale notes chosen by ascending fret within a 7-fret search window that
- * tracks the lowest note on the previous string.
- */
-function buildScaleRoutes(targetPcs, map, maxFret, notesPerString) {
-  const SEARCH = 7;   // fret span searched per string
-  const lowE   = map[0];
+  const SPAN = 4;                          // inclusive fret count per window
+  const map  = buildFretboardMap(tuningSpec, maxFret);
+  const lowE = map[0];
   const results = [];
   const seen    = new Set();
 
-  for (let startFret = 0; startFret <= 12; startFret++) {
-    if (targetPcs.indexOf(pitchClass(lowE[startFret])) === -1) continue;
+  for (let anchor = 0; anchor <= Math.min(12, maxFret - SPAN + 1); anchor++) {
+    // Only anchor where a scale tone sits on string 1
+    if (targetPcs.indexOf(pitchClass(lowE[anchor])) === -1) continue;
 
-    const notes  = [];
-    let valid    = true;
-    let refFret  = startFret;   // tracks first-note fret of previous string
-
-    for (let strIdx = 0; strIdx < 6 && valid; strIdx++) {
-      const strFrets = map[strIdx];
-      const lo = strIdx === 0 ? startFret : Math.max(0, refFret - 1);
-      const hi = Math.min(lo + SEARCH, maxFret);
-
-      // Collect scale notes on this string in [lo, hi], in fret order
-      const available = [];
-      for (let f = lo; f <= hi; f++) {
-        const di = targetPcs.indexOf(pitchClass(strFrets[f]));
-        if (di !== -1) available.push({ fret: f, di });
+    // Collect every scale note in [anchor, anchor + SPAN - 1] on all strings
+    const notes = [];
+    map.forEach((stringFrets, strIdx) => {
+      for (let fret = anchor; fret < anchor + SPAN; fret++) {
+        if (fret >= stringFrets.length) break;
+        const pc = pitchClass(stringFrets[fret]);
+        const di = targetPcs.indexOf(pc);
+        if (di !== -1) notes.push({ string: strIdx + 1, fret, pc, degreeIndex: di });
       }
+    });
 
-      if (available.length === 0) { valid = false; break; }
-
-      const picked = available.slice(0, notesPerString);
-      for (const n of picked) {
-        notes.push({
-          string:      strIdx + 1,
-          fret:        n.fret,
-          pc:          targetPcs[n.di],
-          degreeIndex: n.di,
-        });
-      }
-
-      refFret = picked[0].fret;  // next string searches near this fret
-    }
-
-    if (!valid) continue;
-
-    // Every scale degree must appear somewhere in the route
+    // Every scale degree must appear at least once in the window
     const present = new Set(notes.map(n => n.pc));
     if (!targetPcs.every(pc => present.has(pc))) continue;
 
+    // Deduplicate by exact fingering fingerprint
     const fp = notes.map(n => `${n.string}:${n.fret}`).join(',');
     if (seen.has(fp)) continue;
     seen.add(fp);
 
-    const fretsUsed  = notes.map(n => n.fret);
-    const windowStart = Math.min(...fretsUsed);
+    const fretsUsed   = notes.map(n => n.fret);
+    const windowStart = Math.min(...fretsUsed);   // always equals anchor
     const windowSize  = Math.max(...fretsUsed) - windowStart + 1;
 
     results.push({ windowStart, windowSize, notes });

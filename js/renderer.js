@@ -320,33 +320,49 @@ export function renderChordDiagram(container, voicing, degreeLabels = [], opts =
 
 /**
  * Render a compact horizontal mini-fretboard for one scale box position.
- * Low E at bottom, nut on left for open position, fret label otherwise.
- * Root dots filled red; all other scale-tone dots use the fretboard colour.
+ * Low E at bottom.  When the window starts at fret 0 (open position):
+ *   – a nut is drawn and open-string notes (fret 0) appear to its LEFT,
+ *     so they are visually distinct from fret-1 notes (which appear in the
+ *     first slot after the nut).
+ * For all other positions a fret-number label is shown at the bottom-left.
+ * Every note dot shows its scale degree number (1–7 etc.).
  */
 export function renderScaleDiagram(container, notes, windowStart, windowSize) {
   const cfg = DEFAULTS;
 
   const STRINGS = 6;
-  const FRETS   = windowSize;   // fret slots shown
-  const FW      = 24;           // pixels per fret
-  const SS      = 17;           // pixels per string
-  const DR      = 6;            // dot radius
-  const NW      = 5;            // nut width
-
+  const FW      = 26;    // pixels per fret slot
+  const SS      = 17;    // pixels per string
+  const DR      = 6.5;   // dot radius (large enough for a digit)
+  const NW      = 5;     // nut width
   const mTop    = 8;
-  const mLeft   = 12;
+  const mLeft   = 10;
   const mRight  = 8;
   const mBottom = 22;
 
-  const boardW  = FRETS * FW;
-  const boardH  = (STRINGS - 1) * SS;
-  const svgW    = mLeft + boardW + mRight;
-  const svgH    = mTop  + boardH + mBottom;
-  const isOpen  = windowStart === 0;
+  // When the window includes fret 0 we need an extra column to the left of
+  // the nut so that open-string dots don't sit in the "fret 1" slot.
+  const hasOpen  = (windowStart === 0);
+  const openW    = hasOpen ? FW : 0;    // extra width for the open-string column
+  // Number of fretted columns = span excluding fret 0 when hasOpen
+  const FRETS    = hasOpen ? (windowSize - 1) : windowSize;
+  const boardBgX = mLeft + openW;       // x where the fretted board starts (= nut x)
+  const boardW   = FRETS * FW;
+  const boardH   = (STRINGS - 1) * SS;
+  const svgW     = mLeft + openW + boardW + mRight;
+  const svgH     = mTop  + boardH + mBottom;
 
   // strIdx 0 = low E → bottom; strIdx 5 = high e → top
-  const strY  = (strIdx) => mTop + (STRINGS - 1 - strIdx) * SS;
-  const noteX = (fret)   => mLeft + (fret - windowStart + 0.5) * FW;
+  const strY = (strIdx) => mTop + (STRINGS - 1 - strIdx) * SS;
+
+  // noteX maps a real fret number to the horizontal centre of its slot:
+  //   hasOpen  → fret 0 is in the open column (left of nut),
+  //              fret 1 is in the first fretted slot (right of nut), etc.
+  //   !hasOpen → fret windowStart is in slot 0, windowStart+1 in slot 1, …
+  const noteX = (fret) =>
+    hasOpen
+      ? mLeft + (fret + 0.5) * FW          // fret 0 → mLeft+½FW; fret 1 → mLeft+1½FW
+      : mLeft + (fret - windowStart + 0.5) * FW;
 
   const svg = attrs(ns('svg'), {
     viewBox: `0 0 ${svgW} ${svgH}`,
@@ -354,43 +370,45 @@ export function renderScaleDiagram(container, notes, windowStart, windowSize) {
     preserveAspectRatio: 'xMidYMid meet',
   });
 
-  // Fretboard background
-  svgRect(svg, mLeft, mTop, boardW, boardH, { fill: cfg.fretboardColor });
+  // Background covers the full content area (open column + fretted board)
+  svgRect(svg, mLeft, mTop, openW + boardW, boardH, { fill: cfg.fretboardColor });
 
-  // Nut (open position) or plain left boundary
-  if (isOpen) {
+  // Nut (open positions) or left boundary line
+  if (hasOpen) {
+    svgRect(svg, boardBgX, mTop - 1, NW, boardH + 2, { fill: cfg.nutColor });
+  } else if (windowStart <= 1) {
     svgRect(svg, mLeft, mTop - 1, NW, boardH + 2, { fill: cfg.nutColor });
   } else {
     svgLine(svg, mLeft, mTop, mLeft, mTop + boardH,
       { stroke: cfg.fretColor, 'stroke-width': 1.5 });
   }
 
-  // Fret lines (vertical)
+  // Fret lines (vertical) — only inside the fretted board area
   for (let f = 1; f <= FRETS; f++) {
-    svgLine(svg, mLeft + f * FW, mTop, mLeft + f * FW, mTop + boardH,
+    svgLine(svg, boardBgX + f * FW, mTop, boardBgX + f * FW, mTop + boardH,
       { stroke: cfg.fretColor, 'stroke-width': 1.5 });
   }
 
-  // String lines — thicker for lower strings
+  // String lines span the full diagram width (open column + fretted area)
   for (let s = 0; s < STRINGS; s++) {
-    svgLine(svg, mLeft, strY(s), mLeft + boardW, strY(s), {
-      stroke: cfg.stringColor,
-      'stroke-width': (1.8 - s * 0.22).toFixed(2),
+    svgLine(svg, mLeft, strY(s), mLeft + openW + boardW, strY(s), {
+      stroke:           cfg.stringColor,
+      'stroke-width':   (1.8 - s * 0.22).toFixed(2),
     });
   }
 
-  // Fret position label (non-open positions only)
-  if (!isOpen) {
+  // Fret-position label — bottom-left of first fretted slot (non-open only)
+  if (!hasOpen) {
     svgText(svg, mLeft + FW * 0.5, mTop + boardH + 14, `${windowStart}fr`, {
       'text-anchor': 'middle', 'dominant-baseline': 'middle',
       'font-size': '9', 'font-family': 'monospace', fill: '#000',
     });
   }
 
-  // Note dots with degree label inside (1–7, etc.)
+  // Note dots with scale-degree number inside
   notes.forEach(n => {
-    const x = noteX(n.fret);
-    const y = strY(n.string - 1);
+    const x    = noteX(n.fret);
+    const y    = strY(n.string - 1);
     const fill = degreeColor(n.degreeIndex, cfg);
     svgCircle(svg, x, y, DR, { fill, stroke: '#000', 'stroke-width': 1.2 });
     svgText(svg, x, y, String(n.degreeIndex + 1), {
