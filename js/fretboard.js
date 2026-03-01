@@ -286,23 +286,41 @@ export function findScalePositions(targetPcs, tuningSpec, maxFret = 22) {
       }
     });
 
-    // Remove cross-string duplicates: if the same MIDI pitch appears on
-    // both string S and string S+1 (e.g. B3 on G-string fret 4 AND B-string
-    // fret 0), keep only the lower-string occurrence so each note is
-    // unambiguously assigned to one string.
-    const midiOnString = new Map();   // string number → Set<midi>
-    raw.forEach(n => {
-      if (!midiOnString.has(n.string)) midiOnString.set(n.string, new Set());
-      midiOnString.get(n.string).add(n.midi);
-    });
-    const notes = raw.filter(n =>
-      n.string === 1 ||
-      !(midiOnString.get(n.string - 1) ?? new Set()).has(n.midi)
-    );
+    // Collect pairs where the same MIDI pitch appears on adjacent strings.
+    // For each such pair we have a choice: assign the note to the lower or
+    // upper string.  We try every combination (2^N, N ≤ 2 in practice) and
+    // pick the one whose resulting note-set spans the fewest frets.
+    const dupePairs = [];
+    for (let s = 1; s <= 5; s++) {
+      const onS   = raw.filter(n => n.string === s);
+      const onSp1 = raw.filter(n => n.string === s + 1);
+      for (const a of onS)
+        for (const b of onSp1)
+          if (a.midi === b.midi) dupePairs.push([a, b]); // [lower, upper]
+    }
 
-    // Every scale degree must appear at least once in the window
-    const present = new Set(notes.map(n => n.pc));
-    if (!targetPcs.every(pc => present.has(pc))) continue;
+    // Evaluate every assignment combination; keep the narrowest valid one.
+    let notes    = null;
+    let bestSpan = Infinity;
+
+    for (let mask = 0; mask < (1 << dupePairs.length); mask++) {
+      const toRemove = new Set();
+      dupePairs.forEach(([lo, hi], i) => {
+        // bit=0 → keep lower (drop upper); bit=1 → keep upper (drop lower)
+        toRemove.add((mask >> i & 1) ? lo : hi);
+      });
+      const candidate = raw.filter(n => !toRemove.has(n));
+
+      // Must still cover every scale degree
+      const present = new Set(candidate.map(n => n.pc));
+      if (!targetPcs.every(pc => present.has(pc))) continue;
+
+      const frets = candidate.map(n => n.fret);
+      const span  = Math.max(...frets) - Math.min(...frets);
+      if (span < bestSpan) { bestSpan = span; notes = candidate; }
+    }
+
+    if (!notes) continue;   // no valid assignment found for this anchor
 
     // Deduplicate by exact fingering fingerprint
     const fp = notes.map(n => `${n.string}:${n.fret}`).join(',');

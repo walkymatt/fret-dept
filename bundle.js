@@ -332,15 +332,34 @@ function findScalePositions(targetPcs, tuningSpec, maxFret = 22) {
           });
       }
     });
-    const midiOnString = new Map;
-    raw.forEach((n) => {
-      if (!midiOnString.has(n.string))
-        midiOnString.set(n.string, new Set);
-      midiOnString.get(n.string).add(n.midi);
-    });
-    const notes = raw.filter((n) => n.string === 1 || !(midiOnString.get(n.string - 1) ?? new Set).has(n.midi));
-    const present = new Set(notes.map((n) => n.pc));
-    if (!targetPcs.every((pc) => present.has(pc)))
+    const dupePairs = [];
+    for (let s = 1;s <= 5; s++) {
+      const onS = raw.filter((n) => n.string === s);
+      const onSp1 = raw.filter((n) => n.string === s + 1);
+      for (const a of onS)
+        for (const b of onSp1)
+          if (a.midi === b.midi)
+            dupePairs.push([a, b]);
+    }
+    let notes = null;
+    let bestSpan = Infinity;
+    for (let mask = 0;mask < 1 << dupePairs.length; mask++) {
+      const toRemove = new Set;
+      dupePairs.forEach(([lo, hi], i) => {
+        toRemove.add(mask >> i & 1 ? lo : hi);
+      });
+      const candidate = raw.filter((n) => !toRemove.has(n));
+      const present = new Set(candidate.map((n) => n.pc));
+      if (!targetPcs.every((pc) => present.has(pc)))
+        continue;
+      const frets = candidate.map((n) => n.fret);
+      const span = Math.max(...frets) - Math.min(...frets);
+      if (span < bestSpan) {
+        bestSpan = span;
+        notes = candidate;
+      }
+    }
+    if (!notes)
       continue;
     const fp = notes.map((n) => `${n.string}:${n.fret}`).join(",");
     if (seen.has(fp))
