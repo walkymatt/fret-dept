@@ -110,12 +110,62 @@ function render() {
 // Chord: voicing gallery
 // ---------------------------------------------------------------------------
 
+/**
+ * For an impossible voicing, try muting outer strings (high first, then low)
+ * until the fingering becomes viable.  The muted voicing must still contain
+ * every required pitch class, keep at least 3 voices, and satisfy any bass-
+ * note inversion constraint.
+ *
+ * Returns a new 6-element voicing array, or null if nothing works.
+ */
+function fixImpossibleVoicing(voicing, requiredPcs, bassPc) {
+  // Muting patterns: strIdx arrays, tried in order (outermost strings first).
+  const patterns = [
+    [5],           // mute high e
+    [0],           // mute low E
+    [5, 4],        // mute high e + B
+    [0, 1],        // mute low E + A
+    [5, 0],        // mute both extremes
+    [5, 4, 0],     // mute top two + low E
+    [5, 0, 1],     // mute high e + low two
+    [5, 4, 3],     // mute top three
+  ];
+
+  for (const toMute of patterns) {
+    const trimmed = voicing.map((v, i) => toMute.includes(i) ? null : v);
+    const notes   = trimmed.filter(v => v !== null);
+    if (notes.length < 3) continue;
+
+    // All required pitch classes must still be present.
+    const present = new Set(notes.map(n => n.pc));
+    if (requiredPcs.some(pc => !present.has(pc))) continue;
+
+    // Bass inversion constraint: the lowest sounding string must still carry
+    // the required bass pitch class.
+    if (bassPc !== null) {
+      const lowest = trimmed.find(v => v !== null);   // strIdx 0 = low E = first
+      if (!lowest || lowest.pc !== bassPc) continue;
+    }
+
+    const f = assignFingering(trimmed);
+    if (!f.impossible) return trimmed;
+  }
+  return null;
+}
+
 function computeVoicings() {
   if (state.mode !== 'chord') { state.voicings = []; return; }
   const { pitchClasses, tuning } = getChordScaleData();
   const bassPc = (state.inversion > 0 && state.inversion < pitchClasses.length)
     ? pitchClasses[state.inversion] : null;
-  state.voicings = findVoicingsAcrossNeck(pitchClasses, tuning, VOICING_FRETS, 4, bassPc);
+  const raw = findVoicingsAcrossNeck(pitchClasses, tuning, VOICING_FRETS, 4, bassPc);
+  state.voicings = raw.map(v => {
+    const f = assignFingering(v.voicing);
+    if (!f.impossible) return v;                                 // already fine
+    const fixed = fixImpossibleVoicing(v.voicing, pitchClasses, bassPc);
+    if (fixed === null) return null;                             // drop it
+    return { ...v, voicing: fixed };                            // use trimmed
+  }).filter(Boolean);
   if (state.positionIndex >= state.voicings.length) state.positionIndex = 0;
 }
 
