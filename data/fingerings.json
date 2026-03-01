@@ -1,0 +1,403 @@
+{
+  "version": 1,
+
+  "format": {
+    "strings": "6-element array, index 0 = string 1 = low E, index 5 = string 6 = high e. Values: null = muted/not played; 0 = open string (open:true) or at barre reference fret (open:false); positive integer = fret number (open:true) or offset above barre reference fret (open:false).",
+    "fingers": "6-element array, same indexing. Values: null = muted; 0 = open string (no finger); 1-4 = finger (1=index, 2=middle, 3=ring, 4=pinky); 'T' = thumb over the neck.",
+    "barre": "null, or { finger, fromString, toString } where fromString/toString are 1-indexed (1=low E, 6=high e). Describes which finger lays flat across which string span at the barre reference fret.",
+    "open": "true = open-position chord; match by exact absolute fret values. false = moveable shape; match by normalising the voicing (subtract min fret) and comparing relative offsets.",
+    "difficulty_hints": "semi_barre field flags a barre with one open string inside the span — much harder than a clean barre, should carry a heavy difficulty penalty."
+  },
+
+  "matching": {
+    "open_true":  "If any string in the incoming voicing is at absolute fret 0, look only in open:true entries and match strings[] element-for-element (null==null, fret==fret).",
+    "open_false": "Otherwise compute minFret = min(non-null frets). Subtract minFret from every non-null fret to get a relative pattern. Match against open:false entries on that pattern.",
+    "no_match":   "Fall through to the algorithmic finger-assignment if no entry matches."
+  },
+
+  "shapes": [
+
+    {
+      "id": "open-e-major",
+      "name": "E major",
+      "chordType": "major",
+      "tags": ["open", "caged-e"],
+      "open": true,
+      "strings": [0, 2, 2, 1, 0, 0],
+      "fingers": [0, 2, 3, 1, 0, 0],
+      "barre": null
+    },
+
+    {
+      "id": "open-e-minor",
+      "name": "E minor",
+      "chordType": "minor",
+      "tags": ["open", "caged-e"],
+      "open": true,
+      "strings": [0, 2, 2, 0, 0, 0],
+      "fingers": [0, 2, 3, 0, 0, 0],
+      "barre": null,
+      "notes": "Some players prefer index+middle (1,2) to keep ring free for Em7 variations."
+    },
+
+    {
+      "id": "open-e-dom7",
+      "name": "E7",
+      "chordType": "dom7",
+      "tags": ["open", "caged-e"],
+      "open": true,
+      "strings": [0, 2, 0, 1, 0, 0],
+      "fingers": [0, 2, 0, 1, 0, 0],
+      "barre": null
+    },
+
+    {
+      "id": "open-e-min7",
+      "name": "Em7",
+      "chordType": "min7",
+      "tags": ["open", "caged-e"],
+      "open": true,
+      "strings": [0, 2, 0, 0, 0, 0],
+      "fingers": [0, 2, 0, 0, 0, 0],
+      "barre": null,
+      "notes": "Minimal voicing: only the A string is fretted; D and G strings open provide the minor 7th and minor 3rd."
+    },
+
+    {
+      "id": "open-e-maj7",
+      "name": "Emaj7",
+      "chordType": "maj7",
+      "tags": ["open", "caged-e"],
+      "open": true,
+      "strings": [0, 2, 1, 1, 0, 0],
+      "fingers": [0, 3, 1, 2, 0, 0],
+      "barre": null,
+      "notes": "D and G strings at same fret: index on D (lower string), middle on G (higher string). Ring then reaches A at fret 2."
+    },
+
+    {
+      "id": "open-a-major",
+      "name": "A major",
+      "chordType": "major",
+      "tags": ["open", "caged-a"],
+      "open": true,
+      "strings": [null, 0, 2, 2, 2, 0],
+      "fingers": [null, 0, 1, 2, 3, 0],
+      "barre": null,
+      "notes": "Alternative: barre index across D/G/B strings. Alternative: middle+ring+pinky leaves index free for transitions."
+    },
+
+    {
+      "id": "open-a-minor",
+      "name": "A minor",
+      "chordType": "minor",
+      "tags": ["open", "caged-a"],
+      "open": true,
+      "strings": [null, 0, 2, 2, 1, 0],
+      "fingers": [null, 0, 3, 2, 1, 0],
+      "barre": null,
+      "notes": "Conventional fingering has ring on D and middle on G — opposite of the lower-string/lower-finger rule. Index on B at fret 1 is the anchor."
+    },
+
+    {
+      "id": "open-a-dom7",
+      "name": "A7",
+      "chordType": "dom7",
+      "tags": ["open", "caged-a"],
+      "open": true,
+      "strings": [null, 0, 2, 0, 2, 0],
+      "fingers": [null, 0, 1, 0, 2, 0],
+      "barre": null,
+      "notes": "D and B at same fret 2: index on D (lower string), middle on B (higher string)."
+    },
+
+    {
+      "id": "open-a-min7",
+      "name": "Am7",
+      "chordType": "min7",
+      "tags": ["open", "caged-a"],
+      "open": true,
+      "strings": [null, 0, 2, 0, 1, 0],
+      "fingers": [null, 0, 2, 0, 1, 0],
+      "barre": null,
+      "notes": "Index on B (fret 1), middle on D (fret 2). G and high e open."
+    },
+
+    {
+      "id": "open-a-maj7",
+      "name": "Amaj7",
+      "chordType": "maj7",
+      "tags": ["open", "caged-a"],
+      "open": true,
+      "strings": [null, 0, 2, 1, 2, 0],
+      "fingers": [null, 0, 2, 1, 3, 0],
+      "barre": null,
+      "notes": "Index on G (fret 1). D and B at fret 2: middle on D (lower string), ring on B (higher string)."
+    },
+
+    {
+      "id": "open-d-major",
+      "name": "D major",
+      "chordType": "major",
+      "tags": ["open", "caged-d"],
+      "open": true,
+      "strings": [null, null, 0, 2, 3, 2],
+      "fingers": [null, null, 0, 2, 3, 1],
+      "barre": null,
+      "notes": "Conventional fingering crosses the lower-string/lower-finger rule: index on high e (fret 2), middle on G (fret 2), ring on B (fret 3). This arch is comfortable and common."
+    },
+
+    {
+      "id": "open-d-minor",
+      "name": "D minor",
+      "chordType": "minor",
+      "tags": ["open", "caged-d"],
+      "open": true,
+      "strings": [null, null, 0, 2, 3, 1],
+      "fingers": [null, null, 0, 2, 3, 1],
+      "barre": null,
+      "notes": "Index on high e (fret 1), middle on G (fret 2), ring on B (fret 3)."
+    },
+
+    {
+      "id": "open-d-dom7",
+      "name": "D7",
+      "chordType": "dom7",
+      "tags": ["open", "caged-d"],
+      "open": true,
+      "strings": [null, null, 0, 2, 1, 2],
+      "fingers": [null, null, 0, 2, 1, 3],
+      "barre": null,
+      "notes": "Index on B (fret 1). G and high e at fret 2: middle on G (lower string), ring on high e (higher string)."
+    },
+
+    {
+      "id": "open-g-major",
+      "name": "G major",
+      "chordType": "major",
+      "tags": ["open", "caged-g"],
+      "open": true,
+      "strings": [3, 2, 0, 0, 0, 3],
+      "fingers": [3, 2, 0, 0, 0, 4],
+      "barre": null,
+      "notes": "Ring on low E (fret 3), middle on A (fret 2), pinky on high e (fret 3). Alternative thumb version: T on low E, index on A, middle on high e — frees ring+pinky but requires thumb-over technique."
+    },
+
+    {
+      "id": "open-g-dom7",
+      "name": "G7",
+      "chordType": "dom7",
+      "tags": ["open", "caged-g"],
+      "open": true,
+      "strings": [3, 2, 0, 0, 0, 1],
+      "fingers": [3, 2, 0, 0, 0, 1],
+      "barre": null,
+      "notes": "Index on high e (fret 1), middle on A (fret 2), ring on low E (fret 3)."
+    },
+
+    {
+      "id": "open-c-major",
+      "name": "C major",
+      "chordType": "major",
+      "tags": ["open", "caged-c"],
+      "open": true,
+      "strings": [null, 3, 2, 0, 1, 0],
+      "fingers": [null, 3, 2, 0, 1, 0],
+      "barre": null,
+      "notes": "Ring on A (fret 3), middle on D (fret 2), index on B (fret 1). Classic CAGED C shape."
+    },
+
+    {
+      "id": "open-c-maj7",
+      "name": "Cmaj7",
+      "chordType": "maj7",
+      "tags": ["open", "caged-c"],
+      "open": true,
+      "strings": [null, 3, 2, 0, 0, 0],
+      "fingers": [null, 3, 2, 0, 0, 0],
+      "barre": null,
+      "notes": "C major with B open as the major 7th. Ring on A, middle on D; G, B, high e all open."
+    },
+
+    {
+      "id": "open-c-dom7",
+      "name": "C7",
+      "chordType": "dom7",
+      "tags": ["open", "caged-c"],
+      "open": true,
+      "strings": [null, 3, 2, 3, 1, 0],
+      "fingers": [null, 3, 2, 4, 1, 0],
+      "barre": null,
+      "notes": "Index on B (fret 1), middle on D (fret 2). A and G both at fret 3: ring on A (lower string), pinky on G (higher string). High e open."
+    },
+
+    {
+      "id": "open-b-dom7",
+      "name": "B7",
+      "chordType": "dom7",
+      "tags": ["open"],
+      "open": true,
+      "strings": [null, 2, 1, 2, 0, 2],
+      "fingers": [null, 2, 1, 3, 0, 4],
+      "barre": null,
+      "notes": "Index on D (fret 1). A, G, and high e all at fret 2: middle on A (lowest of the three strings), ring on G, pinky on high e. B string open. The middle finger reaching down to A while index is on D is physically unusual but conventional for this chord."
+    },
+
+    {
+      "id": "open-e5",
+      "name": "E5 (power chord)",
+      "chordType": "power",
+      "tags": ["open", "power"],
+      "open": true,
+      "strings": [0, 2, 2, null, null, null],
+      "fingers": [0, 2, 3, null, null, null],
+      "barre": null,
+      "notes": "Low E open, middle on A (fret 2), ring on D (fret 2). G/B/high e muted with fretting-hand palm or simply not struck."
+    },
+
+    {
+      "id": "barre-e-major",
+      "name": "E-shape barre (major)",
+      "chordType": "major",
+      "tags": ["barre", "caged-e", "moveable"],
+      "open": false,
+      "strings": [0, 2, 2, 1, 0, 0],
+      "fingers": [1, 3, 4, 2, 1, 1],
+      "barre": { "finger": 1, "fromString": 1, "toString": 6 },
+      "notes": "Full 6-string barre with index. Middle on G (rel+1), ring on A (rel+2), pinky on D (rel+2). B and high e held by barre. Covers F, F#, G, Ab, A, Bb, B etc."
+    },
+
+    {
+      "id": "barre-e-minor",
+      "name": "E-shape barre (minor)",
+      "chordType": "minor",
+      "tags": ["barre", "caged-e", "moveable"],
+      "open": false,
+      "strings": [0, 2, 2, 0, 0, 0],
+      "fingers": [1, 3, 4, 1, 1, 1],
+      "barre": { "finger": 1, "fromString": 1, "toString": 6 },
+      "notes": "Full barre. Ring on A (rel+2), pinky on D (rel+2). G, B, high e, low E all held by barre index."
+    },
+
+    {
+      "id": "barre-e-dom7",
+      "name": "E-shape barre (dom7)",
+      "chordType": "dom7",
+      "tags": ["barre", "caged-e", "moveable"],
+      "open": false,
+      "strings": [0, 2, 0, 1, 0, 0],
+      "fingers": [1, 3, 1, 2, 1, 1],
+      "barre": { "finger": 1, "fromString": 1, "toString": 6 },
+      "notes": "Full barre. Middle on G (rel+1), ring on A (rel+2). D string at barre fret (minor 7th) held by index barre."
+    },
+
+    {
+      "id": "barre-e-maj7",
+      "name": "E-shape barre (maj7)",
+      "chordType": "maj7",
+      "tags": ["barre", "caged-e", "moveable"],
+      "open": false,
+      "strings": [0, 2, 1, 1, 0, 0],
+      "fingers": [1, 4, 2, 3, 1, 1],
+      "barre": { "finger": 1, "fromString": 1, "toString": 6 },
+      "notes": "Full barre. D and G both at rel+1: index(barre) covers everything at rel 0; middle on D (rel+1, lower string), ring on G (rel+1, higher string); pinky on A (rel+2)."
+    },
+
+    {
+      "id": "barre-a-major",
+      "name": "A-shape barre (major)",
+      "chordType": "major",
+      "tags": ["barre", "caged-a", "moveable"],
+      "open": false,
+      "strings": [null, 0, 2, 2, 2, 0],
+      "fingers": [null, 1, 2, 3, 4, 1],
+      "barre": { "finger": 1, "fromString": 2, "toString": 6 },
+      "notes": "Low E muted (or optionally sounded as the 5th if it falls on a chord tone). 5-string barre with index across strings 2-6. Middle, ring, pinky on D/G/B at rel+2. Alternative: ring-finger barre across D/G/B leaving index free."
+    },
+
+    {
+      "id": "barre-a-minor",
+      "name": "A-shape barre (minor)",
+      "chordType": "minor",
+      "tags": ["barre", "caged-a", "moveable"],
+      "open": false,
+      "strings": [null, 0, 2, 2, 1, 0],
+      "fingers": [null, 1, 3, 4, 2, 1],
+      "barre": { "finger": 1, "fromString": 2, "toString": 6 },
+      "notes": "5-string barre. Middle on B (rel+1), ring on D (rel+2), pinky on G (rel+2). A and high e held by barre."
+    },
+
+    {
+      "id": "barre-a-dom7",
+      "name": "A-shape barre (dom7)",
+      "chordType": "dom7",
+      "tags": ["barre", "caged-a", "moveable"],
+      "open": false,
+      "strings": [null, 0, 2, 0, 2, 0],
+      "fingers": [null, 1, 2, 1, 3, 1],
+      "barre": { "finger": 1, "fromString": 2, "toString": 6 },
+      "notes": "5-string barre. A, G, high e held by index at barre fret. Middle on D (rel+2), ring on B (rel+2)."
+    },
+
+    {
+      "id": "barre-a-min7",
+      "name": "A-shape barre (min7)",
+      "chordType": "min7",
+      "tags": ["barre", "caged-a", "moveable"],
+      "open": false,
+      "strings": [null, 0, 2, 0, 1, 0],
+      "fingers": [null, 1, 3, 1, 2, 1],
+      "barre": { "finger": 1, "fromString": 2, "toString": 6 },
+      "notes": "5-string barre. A, G, high e held by index. Middle on B (rel+1), ring on D (rel+2)."
+    },
+
+    {
+      "id": "barre-a-maj7",
+      "name": "A-shape barre (maj7)",
+      "chordType": "maj7",
+      "tags": ["barre", "caged-a", "moveable"],
+      "open": false,
+      "strings": [null, 0, 2, 1, 2, 0],
+      "fingers": [null, 1, 3, 2, 4, 1],
+      "barre": { "finger": 1, "fromString": 2, "toString": 6 },
+      "notes": "5-string barre. Index holds A and high e. Middle on G (rel+1). D and B at rel+2: ring on D (lower string), pinky on B (higher string)."
+    },
+
+    {
+      "id": "barre-d-major",
+      "name": "D-shape barre (major)",
+      "chordType": "major",
+      "tags": ["barre", "caged-d", "moveable"],
+      "open": false,
+      "strings": [null, null, 0, 2, 3, 2],
+      "fingers": [null, null, 1, 2, 4, 3],
+      "barre": { "finger": 1, "fromString": 3, "toString": 6 },
+      "notes": "4-string mini-barre with index across D/G/B/high-e. Middle on G (rel+2), ring on high e (rel+2), pinky on B (rel+3). Low E and A muted. Works cleanly above fret 5."
+    },
+
+    {
+      "id": "power-2string",
+      "name": "Power chord (2-string)",
+      "chordType": "power",
+      "tags": ["barre", "moveable", "power"],
+      "open": false,
+      "strings": [0, 2, null, null, null, null],
+      "fingers": [1, 3, null, null, null, null],
+      "barre": null,
+      "notes": "Index on low string (root), ring on next string (5th). Middle finger kept free — allows quick pinky reach for fills. G/B/high e muted by fretting hand."
+    },
+
+    {
+      "id": "power-3string",
+      "name": "Power chord with octave (3-string)",
+      "chordType": "power",
+      "tags": ["barre", "moveable", "power"],
+      "open": false,
+      "strings": [0, 2, 2, null, null, null],
+      "fingers": [1, 3, 4, null, null, null],
+      "barre": null,
+      "notes": "Index on root, ring on 5th (str+1), pinky on octave (str+2). Both upper strings at rel+2: ring on the lower (str+1), pinky on the higher (str+2)."
+    }
+
+  ]
+}
