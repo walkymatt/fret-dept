@@ -648,9 +648,9 @@ function renderChordDiagram(container, voicing, degreeLabels = [], opts = {}) {
     svgLine(svg, mLeft, y, mLeft + boardW, y, { stroke: cfg.stringColor, "stroke-width": thickness });
   }
   if (fingering?.barre) {
-    const { fromString, toString } = fingering.barre;
+    const { fromString } = fingering.barre;
     const bx = mLeft + 0.5 * FW;
-    const by1 = strY(toString - 1);
+    const by1 = strY(STRINGS - 1);
     const by2 = strY(fromString - 1);
     const barreColor = fingering.semi ? "rgba(230,126,34,0.70)" : "rgba(44,62,80,0.55)";
     svgRect(svg, bx - 5, by1, 10, by2 - by1, { fill: barreColor, rx: 5 });
@@ -708,13 +708,6 @@ function renderChordDiagram(container, voicing, degreeLabels = [], opts = {}) {
   if (fingering) {
     const badgeColorFor = (f) => f === "?" ? "#e74c3c" : f === "T" ? "#8e44ad" : "#2c3e50";
     const COL_X = FCOL_W / 2;
-    if (fingering.barre) {
-      const { fromString, toString } = fingering.barre;
-      const by1 = strY(toString - 1);
-      const by2 = strY(fromString - 1);
-      const bracketColor = fingering.semi ? "rgba(230,126,34,0.70)" : "rgba(44,62,80,0.55)";
-      svgRect(svg, COL_X - 5, by1, 10, by2 - by1, { fill: bracketColor, rx: 5 });
-    }
     voicing.forEach((v, strIdx) => {
       const f = fingering.fingers[strIdx];
       if (f === null)

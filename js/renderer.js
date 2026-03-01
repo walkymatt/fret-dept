@@ -283,13 +283,18 @@ export function renderChordDiagram(container, voicing, degreeLabels = [], opts =
   // ── Barre bar inscribed in the fret ──────────────────────────────────────
   // Drawn after string lines so it sits over them, before note dots so dots
   // remain on top.  The barre is always at minFret (fretPos 0).
+  //
+  // The top of the bar always reaches the high e string (strIdx STRINGS-1)
+  // regardless of barre.toString — the index finger physically covers all
+  // strings from fromString up to high e even when higher-pitched strings are
+  // pressed by other fingers at frets above the barre.
+  // (The only exception would be a note on high e BELOW the barre fret, but
+  // that cannot arise because the barre is always detected at minFret.)
   if (fingering?.barre) {
-    const { fromString, toString } = fingering.barre;
+    const { fromString } = fingering.barre;
     const bx   = mLeft + 0.5 * FW;
-    // Higher strIdx = lower Y in SVG; toString is always the higher-numbered
-    // (higher-pitched) string which maps to the lower Y (top of SVG).
-    const by1  = strY(toString  - 1);   // top Y  (highest-numbered string)
-    const by2  = strY(fromString - 1);  // bottom Y (lowest-numbered string)
+    const by1  = strY(STRINGS - 1);      // always: top Y = high e
+    const by2  = strY(fromString - 1);   // bottom Y = lowest barred string
     const barreColor = fingering.semi
       ? 'rgba(230,126,34,0.70)'   // amber — semi-barre warning
       : 'rgba(44,62,80,0.55)';    // dark slate — clean barre
@@ -343,19 +348,6 @@ export function renderChordDiagram(container, voicing, degreeLabels = [], opts =
       '#2c3e50';                 // 1–4         — dark slate
 
     const COL_X = FCOL_W / 2;   // centre of the finger-number column
-
-    // ── Barre bracket in the left column ─────────────────────────────────
-    // A background rounded-rect behind the column badges for barre strings,
-    // connecting them visually to show a single finger covers them all.
-    if (fingering.barre) {
-      const { fromString, toString } = fingering.barre;
-      const by1 = strY(toString  - 1);
-      const by2 = strY(fromString - 1);
-      const bracketColor = fingering.semi
-        ? 'rgba(230,126,34,0.70)'
-        : 'rgba(44,62,80,0.55)';
-      svgRect(svg, COL_X - 5, by1, 10, by2 - by1, { fill: bracketColor, rx: 5 });
-    }
 
     // ── Left column badges ────────────────────────────────────────────────
     // One badge per non-muted string aligned to its string Y.
