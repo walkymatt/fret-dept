@@ -775,7 +775,7 @@ function findScalePositions(targetPcs, tuningSpec, maxFret = 22) {
   for (let anchor = 0;anchor <= Math.min(12, maxFret - SPAN + 1); anchor++) {
     if (targetPcs.indexOf(pitchClass(lowE[anchor])) === -1)
       continue;
-    const notes = [];
+    const raw = [];
     map.forEach((stringFrets, strIdx) => {
       for (let fret = anchor;fret < anchor + SPAN; fret++) {
         if (fret >= stringFrets.length)
@@ -783,9 +783,22 @@ function findScalePositions(targetPcs, tuningSpec, maxFret = 22) {
         const pc = pitchClass(stringFrets[fret]);
         const di = targetPcs.indexOf(pc);
         if (di !== -1)
-          notes.push({ string: strIdx + 1, fret, pc, degreeIndex: di });
+          raw.push({
+            string: strIdx + 1,
+            fret,
+            pc,
+            degreeIndex: di,
+            midi: stringFrets[fret]
+          });
       }
     });
+    const midiOnString = new Map;
+    raw.forEach((n) => {
+      if (!midiOnString.has(n.string))
+        midiOnString.set(n.string, new Set);
+      midiOnString.get(n.string).add(n.midi);
+    });
+    const notes = raw.filter((n) => n.string === 1 || !(midiOnString.get(n.string - 1) ?? new Set).has(n.midi));
     const present = new Set(notes.map((n) => n.pc));
     if (!targetPcs.every((pc) => present.has(pc)))
       continue;

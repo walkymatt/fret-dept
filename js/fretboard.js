@@ -275,15 +275,30 @@ export function findScalePositions(targetPcs, tuningSpec, maxFret = 22) {
     if (targetPcs.indexOf(pitchClass(lowE[anchor])) === -1) continue;
 
     // Collect every scale note in [anchor, anchor + SPAN - 1] on all strings
-    const notes = [];
+    const raw = [];
     map.forEach((stringFrets, strIdx) => {
       for (let fret = anchor; fret < anchor + SPAN; fret++) {
         if (fret >= stringFrets.length) break;
         const pc = pitchClass(stringFrets[fret]);
         const di = targetPcs.indexOf(pc);
-        if (di !== -1) notes.push({ string: strIdx + 1, fret, pc, degreeIndex: di });
+        if (di !== -1) raw.push({ string: strIdx + 1, fret, pc, degreeIndex: di,
+                                   midi: stringFrets[fret] });
       }
     });
+
+    // Remove cross-string duplicates: if the same MIDI pitch appears on
+    // both string S and string S+1 (e.g. B3 on G-string fret 4 AND B-string
+    // fret 0), keep only the lower-string occurrence so each note is
+    // unambiguously assigned to one string.
+    const midiOnString = new Map();   // string number → Set<midi>
+    raw.forEach(n => {
+      if (!midiOnString.has(n.string)) midiOnString.set(n.string, new Set());
+      midiOnString.get(n.string).add(n.midi);
+    });
+    const notes = raw.filter(n =>
+      n.string === 1 ||
+      !(midiOnString.get(n.string - 1) ?? new Set()).has(n.midi)
+    );
 
     // Every scale degree must appear at least once in the window
     const present = new Set(notes.map(n => n.pc));
