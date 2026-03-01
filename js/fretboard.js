@@ -192,13 +192,21 @@ export function findBestVoicingInWindow(targetPcs, tuningSpec, windowStart = 0, 
   const candidates = map.map((stringFrets, strIdx) => {
     const hits = [];
 
-    // fret 0 — open string; include if it's a chord tone and not already in
-    // the window (i.e. windowStart > 0, since the loop below covers fret 0
-    // when windowStart === 0).
+    // fret 0 — open string: only offer when the string has NO chord tone
+    // inside the current window.  This fills muted-string gaps (e.g. open D
+    // in a 2nd-position G major) without displacing good local notes or
+    // competing with barre shapes that already cover every string.
     if (windowStart > 0 && stringFrets.length > 0) {
-      const pc = pitchClass(stringFrets[0]);
-      const di = targetPcs.indexOf(pc);
-      if (di !== -1) hits.push({ string: strIdx + 1, fret: 0, pc, degreeIndex: di });
+      let hasLocalHit = false;
+      for (let f = windowStart; f < windowStart + windowSize && !hasLocalHit; f++) {
+        if (f < stringFrets.length && targetPcs.includes(pitchClass(stringFrets[f])))
+          hasLocalHit = true;
+      }
+      if (!hasLocalHit) {
+        const pc = pitchClass(stringFrets[0]);
+        const di = targetPcs.indexOf(pc);
+        if (di !== -1) hits.push({ string: strIdx + 1, fret: 0, pc, degreeIndex: di });
+      }
     }
 
     for (let fret = windowStart; fret < windowStart + windowSize; fret++) {
