@@ -186,9 +186,21 @@ export function scoreVoicing(voicing, targetPcs, requiredBassPc = null) {
 export function findBestVoicingInWindow(targetPcs, tuningSpec, windowStart = 0, windowSize = 4, requiredBassPc = null) {
   const map = buildFretboardMap(tuningSpec, windowStart + windowSize);
 
-  // Collect candidate notes per string (plus null = mute)
+  // Collect candidate notes per string (plus null = mute).
+  // Open strings (fret 0) are always playable regardless of windowStart, so
+  // they are checked separately before the windowed loop.
   const candidates = map.map((stringFrets, strIdx) => {
     const hits = [];
+
+    // fret 0 — open string; include if it's a chord tone and not already in
+    // the window (i.e. windowStart > 0, since the loop below covers fret 0
+    // when windowStart === 0).
+    if (windowStart > 0 && stringFrets.length > 0) {
+      const pc = pitchClass(stringFrets[0]);
+      const di = targetPcs.indexOf(pc);
+      if (di !== -1) hits.push({ string: strIdx + 1, fret: 0, pc, degreeIndex: di });
+    }
+
     for (let fret = windowStart; fret < windowStart + windowSize; fret++) {
       if (fret >= stringFrets.length) break;
       const pc = pitchClass(stringFrets[fret]);

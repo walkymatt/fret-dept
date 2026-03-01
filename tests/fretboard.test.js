@@ -238,7 +238,11 @@ describe('findBestVoicingInWindow()', () => {
   });
   it('frets in window',                 () => {
     const v = findBestVoicingInWindow(C_PCS, STD, 5, 4);
-    v.filter(Boolean).forEach(x => { expect(x.fret).toBeGreaterThanOrEqual(5); expect(x.fret).toBeLessThanOrEqual(9); });
+    // Open strings (fret 0) are always valid candidates even outside the window.
+    v.filter(Boolean).forEach(x => {
+      expect(x.fret === 0 || x.fret >= 5).toBe(true);
+      expect(x.fret === 0 || x.fret <= 8).toBe(true);
+    });
   });
   it('returns null when unreachable',   () => {
     // Window frets 1–5 for a chord whose pcs don't all appear there
