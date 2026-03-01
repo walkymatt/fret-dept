@@ -766,26 +766,59 @@ function findVoicingsAcrossNeck(targetPcs, tuningSpec, maxFret = 22, windowSize 
   }
   return results;
 }
-function findScalePositions(targetPcs, tuningSpec, maxFret = 22, windowSize = 5) {
+function findScalePositions(targetPcs, tuningSpec, maxFret = 22) {
   const map = buildFretboardMap(tuningSpec, maxFret);
+  const allRoutes = [
+    ...buildScaleRoutes(targetPcs, map, maxFret, 2),
+    ...buildScaleRoutes(targetPcs, map, maxFret, 3)
+  ];
+  const seen = new Set;
+  return allRoutes.filter((r) => {
+    const fp = r.notes.map((n) => `${n.string}:${n.fret}`).join(",");
+    if (seen.has(fp))
+      return false;
+    seen.add(fp);
+    return true;
+  }).sort((a, b) => a.windowStart !== b.windowStart ? a.windowStart - b.windowStart : a.notes.length - b.notes.length);
+}
+function buildScaleRoutes(targetPcs, map, maxFret, notesPerString) {
+  const SEARCH = 7;
   const lowE = map[0];
   const results = [];
   const seen = new Set;
-  const anchorMax = Math.min(12, maxFret - windowSize);
-  for (let anchor = 0;anchor <= anchorMax; anchor++) {
-    if (targetPcs.indexOf(pitchClass(lowE[anchor])) === -1)
+  for (let startFret = 0;startFret <= 12; startFret++) {
+    if (targetPcs.indexOf(pitchClass(lowE[startFret])) === -1)
       continue;
     const notes = [];
-    map.forEach((stringFrets, strIdx) => {
-      for (let fret = anchor;fret < anchor + windowSize; fret++) {
-        if (fret >= stringFrets.length)
-          break;
-        const pc = pitchClass(stringFrets[fret]);
-        const di = targetPcs.indexOf(pc);
+    let valid = true;
+    let refFret = startFret;
+    for (let strIdx = 0;strIdx < 6 && valid; strIdx++) {
+      const strFrets = map[strIdx];
+      const lo = strIdx === 0 ? startFret : Math.max(0, refFret - 1);
+      const hi = Math.min(lo + SEARCH, maxFret);
+      const available = [];
+      for (let f = lo;f <= hi; f++) {
+        const di = targetPcs.indexOf(pitchClass(strFrets[f]));
         if (di !== -1)
-          notes.push({ string: strIdx + 1, fret, pc, degreeIndex: di });
+          available.push({ fret: f, di });
       }
-    });
+      if (available.length === 0) {
+        valid = false;
+        break;
+      }
+      const picked = available.slice(0, notesPerString);
+      for (const n of picked) {
+        notes.push({
+          string: strIdx + 1,
+          fret: n.fret,
+          pc: targetPcs[n.di],
+          degreeIndex: n.di
+        });
+      }
+      refFret = picked[0].fret;
+    }
+    if (!valid)
+      continue;
     const present = new Set(notes.map((n) => n.pc));
     if (!targetPcs.every((pc) => present.has(pc)))
       continue;
@@ -793,7 +826,10 @@ function findScalePositions(targetPcs, tuningSpec, maxFret = 22, windowSize = 5)
     if (seen.has(fp))
       continue;
     seen.add(fp);
-    results.push({ windowStart: anchor, windowSize, notes });
+    const fretsUsed = notes.map((n) => n.fret);
+    const windowStart = Math.min(...fretsUsed);
+    const windowSize = Math.max(...fretsUsed) - windowStart + 1;
+    results.push({ windowStart, windowSize, notes });
   }
   return results;
 }
@@ -1139,10 +1175,17 @@ function renderScaleDiagram(container, notes, windowStart, windowSize) {
     });
   }
   notes.forEach((n) => {
-    svgCircle(svg, noteX(n.fret), strY(n.string - 1), DR, {
-      fill: degreeColor(n.degreeIndex, cfg),
-      stroke: "#000",
-      "stroke-width": 1.2
+    const x = noteX(n.fret);
+    const y = strY(n.string - 1);
+    const fill = degreeColor(n.degreeIndex, cfg);
+    svgCircle(svg, x, y, DR, { fill, stroke: "#000", "stroke-width": 1.2 });
+    svgText(svg, x, y, String(n.degreeIndex + 1), {
+      "text-anchor": "middle",
+      "dominant-baseline": "middle",
+      "font-size": "8",
+      "font-family": "sans-serif",
+      "font-weight": "bold",
+      fill: n.degreeIndex === 0 ? "#fff" : "#000"
     });
   });
   container.innerHTML = "";
@@ -1301,7 +1344,7 @@ function computeScalePositions() {
     return;
   }
   const { pitchClasses, tuning } = getChordScaleData();
-  state.scalePositions = findScalePositions(pitchClasses, tuning, VOICING_FRETS, 5);
+  state.scalePositions = findScalePositions(pitchClasses, tuning, VOICING_FRETS);
   if (state.scalePositionIndex >= state.scalePositions.length)
     state.scalePositionIndex = 0;
 }

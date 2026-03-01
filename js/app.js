@@ -194,7 +194,7 @@ function renderPositionNav(scrollToActive = false) {
 function computeScalePositions() {
   if (state.mode !== 'scale') { state.scalePositions = []; return; }
   const { pitchClasses, tuning } = getChordScaleData();
-  state.scalePositions = findScalePositions(pitchClasses, tuning, VOICING_FRETS, 5);
+  state.scalePositions = findScalePositions(pitchClasses, tuning, VOICING_FRETS);
   if (state.scalePositionIndex >= state.scalePositions.length) state.scalePositionIndex = 0;
 }
 

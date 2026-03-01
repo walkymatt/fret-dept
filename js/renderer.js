@@ -387,12 +387,19 @@ export function renderScaleDiagram(container, notes, windowStart, windowSize) {
     });
   }
 
-  // Note dots: root = red fill, others = fretboard colour
+  // Note dots with degree label inside (1–7, etc.)
   notes.forEach(n => {
-    svgCircle(svg, noteX(n.fret), strY(n.string - 1), DR, {
-      fill:           degreeColor(n.degreeIndex, cfg),
-      stroke:         '#000',
-      'stroke-width': 1.2,
+    const x = noteX(n.fret);
+    const y = strY(n.string - 1);
+    const fill = degreeColor(n.degreeIndex, cfg);
+    svgCircle(svg, x, y, DR, { fill, stroke: '#000', 'stroke-width': 1.2 });
+    svgText(svg, x, y, String(n.degreeIndex + 1), {
+      'text-anchor':       'middle',
+      'dominant-baseline': 'middle',
+      'font-size':         '8',
+      'font-family':       'sans-serif',
+      'font-weight':       'bold',
+      fill: n.degreeIndex === 0 ? '#fff' : '#000',
     });
   });
 
