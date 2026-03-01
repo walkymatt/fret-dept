@@ -4,8 +4,10 @@ import {
   findBoxVoicing, filterByFretRange,
   scoreVoicing, findBestVoicingInWindow,
   findVoicingsAcrossNeck, identifyCagedShape,
+  findScalePositions,
   TUNINGS, TUNING_LABELS,
 } from '../js/fretboard.js';
+import { getScalePitchClasses, nameToPc } from '../js/theory.js';
 
 const STD = TUNINGS.standard;
 
@@ -392,5 +394,174 @@ describe('identifyCagedShape()', () => {
       null,
     ];
     expect(identifyCagedShape(v)).toBe(null);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Helpers shared by findScalePositions tests
+// ---------------------------------------------------------------------------
+
+const C_MAJOR_PCS  = getScalePitchClasses(nameToPc('C'), 'major');         // 7 notes
+const AM_PENTA_PCS = getScalePitchClasses(nameToPc('A'), 'pentatonic_minor'); // 5 notes
+const STD_TUN  = TUNINGS.standard;
+const DROPD_TUN = TUNINGS.drop_d;
+
+describe('findScalePositions()', () => {
+
+  // ── Basic contract ──────────────────────────────────────────────────────
+
+  it('returns an array', () => {
+    expect(Array.isArray(findScalePositions(C_MAJOR_PCS, STD_TUN))).toBe(true);
+  });
+
+  it('C major standard has 8 positions', () => {
+    expect(findScalePositions(C_MAJOR_PCS, STD_TUN).length).toBe(8);
+  });
+
+  it('Am pentatonic standard has 6 positions', () => {
+    expect(findScalePositions(AM_PENTA_PCS, STD_TUN).length).toBe(6);
+  });
+
+  it('every position covers all scale degrees', () => {
+    for (const pcs of [C_MAJOR_PCS, AM_PENTA_PCS]) {
+      const positions = findScalePositions(pcs, STD_TUN);
+      for (const p of positions) {
+        const present = new Set(p.notes.map(n => n.pc));
+        expect(pcs.every(pc => present.has(pc))).toBe(true);
+      }
+    }
+  });
+
+  it('each note has string 1–6, non-negative fret, valid degreeIndex', () => {
+    for (const p of findScalePositions(C_MAJOR_PCS, STD_TUN)) {
+      for (const n of p.notes) {
+        expect(n.string).toBeGreaterThanOrEqual(1);
+        expect(n.string).toBeLessThanOrEqual(6);
+        expect(n.fret).toBeGreaterThanOrEqual(0);
+        expect(n.degreeIndex).toBeGreaterThanOrEqual(0);
+        expect(n.degreeIndex).toBeLessThan(C_MAJOR_PCS.length);
+        expect(n.pc).toBe(C_MAJOR_PCS[n.degreeIndex]);
+      }
+    }
+  });
+
+  it('positions are sorted by windowStart ascending', () => {
+    const pos = findScalePositions(C_MAJOR_PCS, STD_TUN);
+    for (let i = 1; i < pos.length; i++)
+      expect(pos[i].windowStart).toBeGreaterThanOrEqual(pos[i - 1].windowStart);
+  });
+
+  it('windowSize matches actual fret span of notes', () => {
+    for (const p of findScalePositions(C_MAJOR_PCS, STD_TUN)) {
+      const frets   = p.notes.map(n => n.fret);
+      const span    = Math.max(...frets) - Math.min(...frets) + 1;
+      expect(p.windowSize).toBe(span);
+    }
+  });
+
+  it('no position spans more than 5 frets', () => {
+    for (const p of findScalePositions(C_MAJOR_PCS, STD_TUN))
+      expect(p.windowSize).toBeLessThanOrEqual(5);
+  });
+
+  it('no fingerprint duplicates across positions', () => {
+    const pos = findScalePositions(C_MAJOR_PCS, STD_TUN);
+    const fps = pos.map(p => p.notes.map(n => `${n.string}:${n.fret}`).join(','));
+    expect(new Set(fps).size).toBe(fps.length);
+  });
+
+  // ── MIDI-duplicate span minimisation ───────────────────────────────────
+
+  it('C major open position: B assigned to B-string (smaller span) not G-string', () => {
+    // B3 = MIDI 59 appears at both G-string fret 4 and B-string fret 0.
+    // Assigning to B-string keeps the span within frets 0–3 (size 4);
+    // assigning to G-string would require frets 0–4 (size 5).
+    const p = findScalePositions(C_MAJOR_PCS, STD_TUN)[0]; // anchor 0
+    const gStrNotes = p.notes.filter(n => n.string === 4);
+    const bStrNotes = p.notes.filter(n => n.string === 5);
+    // G-string should NOT have B (degreeIndex 6)
+    expect(gStrNotes.some(n => n.degreeIndex === 6)).toBe(false);
+    // B-string SHOULD have B at fret 0
+    expect(bStrNotes.some(n => n.fret === 0 && n.degreeIndex === 6)).toBe(true);
+    // Span ≤ 4 (not 5)
+    expect(p.windowSize).toBeLessThanOrEqual(4);
+  });
+
+  it('no two notes share the same MIDI pitch across adjacent strings', () => {
+    const map = buildFretboardMap(STD_TUN, 22);
+    for (const p of findScalePositions(C_MAJOR_PCS, STD_TUN)) {
+      const midiByString = new Map();
+      p.notes.forEach(n => {
+        if (!midiByString.has(n.string)) midiByString.set(n.string, new Set());
+        midiByString.get(n.string).add(map[n.string - 1][n.fret]);
+      });
+      for (let s = 1; s <= 5; s++) {
+        const lo = midiByString.get(s) ?? new Set();
+        const hi = midiByString.get(s + 1) ?? new Set();
+        for (const m of lo) expect(hi.has(m)).toBe(false);
+      }
+    }
+  });
+
+  // ── Connectivity ────────────────────────────────────────────────────────
+
+  it('all standard-tuning C major positions are fully connected across strings', () => {
+    const N = C_MAJOR_PCS.length;
+    for (const p of findScalePositions(C_MAJOR_PCS, STD_TUN)) {
+      const byStr = new Map();
+      p.notes.forEach(n => {
+        if (!byStr.has(n.string)) byStr.set(n.string, []);
+        byStr.get(n.string).push(n);
+      });
+      byStr.forEach(ns => ns.sort((a, b) => a.fret - b.fret));
+      const active = [1,2,3,4,5,6].filter(s => byStr.has(s));
+      for (let i = 0; i + 1 < active.length; i++) {
+        const last  = byStr.get(active[i]).at(-1).degreeIndex;
+        const first = byStr.get(active[i + 1])[0].degreeIndex;
+        expect(first).toBe((last + 1) % N);
+      }
+    }
+  });
+
+  // ── Drop-D tuning: connectivity trimming ────────────────────────────────
+
+  it('Drop-D C major pos 1: string 1 (low D) is trimmed — gap between deg 4→6', () => {
+    const pos = findScalePositions(C_MAJOR_PCS, DROPD_TUN);
+    // The first anchor (fret 0 on low D = D = deg 2 of C major) should
+    // produce a diagram that omits string 1 because deg 5 (G) is unreachable
+    // within the 5-fret window on string 1 or 2.
+    const p = pos[0];
+    const strings = new Set(p.notes.map(n => n.string));
+    expect(strings.has(1)).toBe(false);          // str1 trimmed
+    expect(strings.has(2)).toBe(true);           // str2 onwards retained
+    const present = new Set(p.notes.map(n => n.pc));
+    expect(C_MAJOR_PCS.every(pc => present.has(pc))).toBe(true); // still complete
+  });
+
+  it('Drop-D positions are all connected after trimming', () => {
+    const N = C_MAJOR_PCS.length;
+    for (const p of findScalePositions(C_MAJOR_PCS, DROPD_TUN)) {
+      const byStr = new Map();
+      p.notes.forEach(n => {
+        if (!byStr.has(n.string)) byStr.set(n.string, []);
+        byStr.get(n.string).push(n);
+      });
+      byStr.forEach(ns => ns.sort((a, b) => a.fret - b.fret));
+      const active = [1,2,3,4,5,6].filter(s => byStr.has(s));
+      for (let i = 0; i + 1 < active.length; i++) {
+        const last  = byStr.get(active[i]).at(-1).degreeIndex;
+        const first = byStr.get(active[i + 1])[0].degreeIndex;
+        expect(first).toBe((last + 1) % N);
+      }
+    }
+  });
+
+  it('Drop-D C major: all retained positions still cover every degree', () => {
+    const pos = findScalePositions(C_MAJOR_PCS, DROPD_TUN);
+    expect(pos.length).toBeGreaterThan(0);
+    for (const p of pos) {
+      const present = new Set(p.notes.map(n => n.pc));
+      expect(C_MAJOR_PCS.every(pc => present.has(pc))).toBe(true);
+    }
   });
 });
