@@ -307,7 +307,7 @@ function findVoicingsAcrossNeck(targetPcs, tuningSpec, maxFret = 22, windowSize 
   return results;
 }
 function findScalePositions(targetPcs, tuningSpec, maxFret = 22) {
-  const SPAN = 4;
+  const SPAN = 5;
   const map = buildFretboardMap(tuningSpec, maxFret);
   const lowE = map[0];
   const results = [];

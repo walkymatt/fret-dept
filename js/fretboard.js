@@ -264,7 +264,7 @@ export function findVoicingsAcrossNeck(targetPcs, tuningSpec, maxFret = 22, wind
  * positions where all scale degrees are present in the window.
  */
 export function findScalePositions(targetPcs, tuningSpec, maxFret = 22) {
-  const SPAN = 4;                          // inclusive fret count per window
+  const SPAN = 5;                          // inclusive fret count per window
   const map  = buildFretboardMap(tuningSpec, maxFret);
   const lowE = map[0];
   const results = [];
