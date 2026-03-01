@@ -12,6 +12,7 @@ import {
 
 import {
   findPositions, findVoicingsAcrossNeck, findScalePositions,
+  identifyCagedShape,
   TUNINGS, TUNING_LABELS,
 } from './fretboard.js';
 
@@ -165,7 +166,7 @@ function computeVoicings() {
     if (!f.impossible) return v;                                 // already fine
     const fixed = fixImpossibleVoicing(v.voicing, pitchClasses, bassPc);
     if (fixed === null) return null;                             // drop it
-    return { ...v, voicing: fixed };                            // use trimmed
+    return { ...v, voicing: fixed, cagedShape: identifyCagedShape(fixed) }; // retag
   }).filter(Boolean).filter(v => {
     // Deduplicate: two voicings are identical when every string has the same
     // fret value (or both null).  Keep only the first occurrence.

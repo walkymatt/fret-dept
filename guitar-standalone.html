@@ -908,7 +908,11 @@ function identifyCagedShape(voicing) {
     return "A";
   }
   if (rootStrIdx === 2 && voicing[0] === null && voicing[1] === null) {
-    return "D";
+    const top4 = [voicing[2], voicing[3], voicing[4], voicing[5]].filter(Boolean);
+    if (top4.length === 0)
+      return null;
+    const minTop4 = Math.min(...top4.map((v) => v.fret));
+    return voicing[2].fret > minTop4 ? "E" : "D";
   }
   return null;
 }
@@ -1967,7 +1971,7 @@ function computeVoicings() {
     const fixed = fixImpossibleVoicing(v.voicing, pitchClasses, bassPc);
     if (fixed === null)
       return null;
-    return { ...v, voicing: fixed };
+    return { ...v, voicing: fixed, cagedShape: identifyCagedShape(fixed) };
   }).filter(Boolean).filter((v) => {
     const key = v.voicing.map((n) => n === null ? "x" : n.fret).join(",");
     if (seen.has(key))

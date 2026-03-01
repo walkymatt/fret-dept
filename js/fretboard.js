@@ -442,9 +442,17 @@ export function identifyCagedShape(voicing) {
     return 'A'; // only 1 or 0 inner strings — default to A
   }
 
-  // D shape: root on string 4 (strIdx 2, D), strings 6 & 5 muted
+  // D shape vs E shape (muted low strings): root on D string (strIdx 2),
+  // both lower strings muted.
+  // E-shape: the D string root sits ABOVE the barre — it's the highest-fret
+  //   note of the four top strings (e.g. x-x-10-9-8-8 → D@10 > min 8).
+  // D-shape: the D string root IS the barre — it's the lowest-fret note
+  //   (e.g. x-x-2-4-5-4 → D@2 = min 2).
   if (rootStrIdx === 2 && voicing[0] === null && voicing[1] === null) {
-    return 'D';
+    const top4    = [voicing[2], voicing[3], voicing[4], voicing[5]].filter(Boolean);
+    if (top4.length === 0) return null;
+    const minTop4 = Math.min(...top4.map(v => v.fret));
+    return voicing[2].fret > minTop4 ? 'E' : 'D';
   }
 
   return null;
