@@ -1092,14 +1092,6 @@ function renderChordDiagram(container, voicing, degreeLabels = [], opts = {}) {
     viewBox: `0 0 ${svgW} ${svgH}`,
     preserveAspectRatio: "xMidYMid meet"
   });
-  if (fingering?.barre) {
-    const { fromString, toString } = fingering.barre;
-    const bx = mLeft + 0.5 * FW;
-    const by1 = strY(toString - 1);
-    const by2 = strY(fromString - 1);
-    const barreColor = fingering.semi ? "rgba(230,126,34,0.45)" : "rgba(44,62,80,0.30)";
-    svgRect(svg, bx - 4, by1, 8, by2 - by1, { fill: barreColor, rx: 4 });
-  }
   svgRect(svg, mLeft, mTop, boardW, boardH, { fill: cfg.fretboardColor, rx: 1 });
   if (isOpen) {
     svgRect(svg, mLeft - NW / 2, mTop - 1, NW, boardH + 2, { fill: cfg.nutColor, rx: 1 });
@@ -1114,6 +1106,14 @@ function renderChordDiagram(container, voicing, degreeLabels = [], opts = {}) {
     const y = strY(s);
     const thickness = 0.5 + (STRINGS - 1 - s) / (STRINGS - 1) * 1.6;
     svgLine(svg, mLeft, y, mLeft + boardW, y, { stroke: cfg.stringColor, "stroke-width": thickness });
+  }
+  if (fingering?.barre) {
+    const { fromString, toString } = fingering.barre;
+    const bx = mLeft + 0.5 * FW;
+    const by1 = strY(toString - 1);
+    const by2 = strY(fromString - 1);
+    const barreColor = fingering.semi ? "rgba(230,126,34,0.70)" : "rgba(44,62,80,0.55)";
+    svgRect(svg, bx - 5, by1, 10, by2 - by1, { fill: barreColor, rx: 5 });
   }
   if (!isOpen) {
     svgText(svg, mLeft + FW * 0.5, mTop + boardH + 20, `${minFret}fr`, {
@@ -1167,38 +1167,21 @@ function renderChordDiagram(container, voicing, degreeLabels = [], opts = {}) {
   });
   if (fingering) {
     const badgeColorFor = (f) => f === "?" ? "#e74c3c" : f === "T" ? "#8e44ad" : "#2c3e50";
-    const DIAG = 9;
-    voicing.forEach((v, strIdx) => {
-      if (v === null || v.fret === 0)
-        return;
-      const f = fingering.fingers[strIdx];
-      if (f === null || f === 0)
-        return;
-      const fretPos = v.fret - minFret;
-      const cx = mLeft + (fretPos + 0.5) * FW;
-      const cy = strY(strIdx);
-      const upper = strIdx >= 3;
-      const bx = cx + (upper ? +DIAG : -DIAG);
-      const by = cy + (upper ? -DIAG : +DIAG);
-      const bc = badgeColorFor(f);
-      svgCircle(svg, bx, by, 5.5, { fill: bc });
-      svgText(svg, bx, by, String(f), {
-        "text-anchor": "middle",
-        "dominant-baseline": "middle",
-        "font-size": "6.5",
-        "font-family": "monospace",
-        "font-weight": "bold",
-        fill: "#fff"
-      });
-    });
     const COL_X = FCOL_W / 2;
+    if (fingering.barre) {
+      const { fromString, toString } = fingering.barre;
+      const by1 = strY(toString - 1);
+      const by2 = strY(fromString - 1);
+      const bracketColor = fingering.semi ? "rgba(230,126,34,0.70)" : "rgba(44,62,80,0.55)";
+      svgRect(svg, COL_X - 5, by1, 10, by2 - by1, { fill: bracketColor, rx: 5 });
+    }
     voicing.forEach((v, strIdx) => {
       const f = fingering.fingers[strIdx];
       if (f === null)
         return;
       const cy = strY(strIdx);
       const label = f === 0 ? "o" : String(f);
-      const bc = f === 0 ? "#888" : badgeColorFor(f);
+      const bc = f === 0 ? "#777" : badgeColorFor(f);
       svgCircle(svg, COL_X, cy, 5.5, { fill: bc, stroke: "#fff", "stroke-width": 0.8 });
       svgText(svg, COL_X, cy, label, {
         "text-anchor": "middle",

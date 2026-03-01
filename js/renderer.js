@@ -252,22 +252,6 @@ export function renderChordDiagram(container, voicing, degreeLabels = [], opts =
     preserveAspectRatio: 'xMidYMid meet',
   });
 
-  // ── Barre bracket (drawn first, sits behind dots) ─────────────────────────
-  // A filled rounded-rect at the barre fret's X, spanning fromString→toString.
-  // Always at the first (leftmost) fret slot because the barre is always at
-  // minFret — the reference point from which all relative offsets are measured.
-  if (fingering?.barre) {
-    const { fromString, toString } = fingering.barre;
-    const bx  = mLeft + 0.5 * FW;
-    // toString > fromString always; higher strIdx → lower Y in SVG
-    const by1 = strY(toString  - 1);   // top of bracket (higher string = lower y)
-    const by2 = strY(fromString - 1);  // bottom of bracket (lower string = higher y)
-    const barreColor = fingering.semi
-      ? 'rgba(230,126,34,0.45)'   // amber — semi-barre warning
-      : 'rgba(44,62,80,0.30)';    // dark grey — clean barre
-    svgRect(svg, bx - 4, by1, 8, by2 - by1, { fill: barreColor, rx: 4 });
-  }
-
   // ── Fretboard body ────────────────────────────────────────────────────────
   svgRect(svg, mLeft, mTop, boardW, boardH,
     { fill: cfg.fretboardColor, rx: 1 });
@@ -294,6 +278,22 @@ export function renderChordDiagram(container, voicing, degreeLabels = [], opts =
     const thickness = 0.5 + ((STRINGS - 1 - s) / (STRINGS - 1)) * 1.6;
     svgLine(svg, mLeft, y, mLeft + boardW, y,
       { stroke: cfg.stringColor, 'stroke-width': thickness });
+  }
+
+  // ── Barre bar inscribed in the fret ──────────────────────────────────────
+  // Drawn after string lines so it sits over them, before note dots so dots
+  // remain on top.  The barre is always at minFret (fretPos 0).
+  if (fingering?.barre) {
+    const { fromString, toString } = fingering.barre;
+    const bx   = mLeft + 0.5 * FW;
+    // Higher strIdx = lower Y in SVG; toString is always the higher-numbered
+    // (higher-pitched) string which maps to the lower Y (top of SVG).
+    const by1  = strY(toString  - 1);   // top Y  (highest-numbered string)
+    const by2  = strY(fromString - 1);  // bottom Y (lowest-numbered string)
+    const barreColor = fingering.semi
+      ? 'rgba(230,126,34,0.70)'   // amber — semi-barre warning
+      : 'rgba(44,62,80,0.55)';    // dark slate — clean barre
+    svgRect(svg, bx - 5, by1, 10, by2 - by1, { fill: barreColor, rx: 5 });
   }
 
   // Position label below the board when not open position
@@ -337,52 +337,36 @@ export function renderChordDiagram(container, voicing, degreeLabels = [], opts =
 
   // ── Fingering overlays ────────────────────────────────────────────────────
   if (fingering) {
-    // Badge colours per finger type
     const badgeColorFor = f =>
-      f === '?' ? '#e74c3c' :   // impossible  — red
-      f === 'T' ? '#8e44ad' :   // thumb        — purple
-      '#2c3e50';                 // fingers 1–4  — dark slate
+      f === '?' ? '#e74c3c' :   // impossible — red
+      f === 'T' ? '#8e44ad' :   // thumb       — purple
+      '#2c3e50';                 // 1–4         — dark slate
 
-    // ── A: Diagonal badges beside each fretted dot ──────────────────────────
-    // Upper strings (strIdx ≥ 3 = G, B, high e): badge shifts upper-right.
-    // Lower strings (strIdx < 3 = D, A, low E):   badge shifts lower-left.
-    // This fans badges away from the string area for adjacent fret columns,
-    // avoiding overlap both with the dot label and with adjacent-string dots.
-    const DIAG = 9;   // px offset magnitude in each axis
-    voicing.forEach((v, strIdx) => {
-      if (v === null || v.fret === 0) return;
-      const f = fingering.fingers[strIdx];
-      if (f === null || f === 0) return;   // open strings need no badge
+    const COL_X = FCOL_W / 2;   // centre of the finger-number column
 
-      const fretPos = v.fret - minFret;
-      const cx = mLeft + (fretPos + 0.5) * FW;
-      const cy = strY(strIdx);
+    // ── Barre bracket in the left column ─────────────────────────────────
+    // A background rounded-rect behind the column badges for barre strings,
+    // connecting them visually to show a single finger covers them all.
+    if (fingering.barre) {
+      const { fromString, toString } = fingering.barre;
+      const by1 = strY(toString  - 1);
+      const by2 = strY(fromString - 1);
+      const bracketColor = fingering.semi
+        ? 'rgba(230,126,34,0.70)'
+        : 'rgba(44,62,80,0.55)';
+      svgRect(svg, COL_X - 5, by1, 10, by2 - by1, { fill: bracketColor, rx: 5 });
+    }
 
-      const upper = strIdx >= 3;
-      const bx = cx + (upper ? +DIAG : -DIAG);
-      const by = cy + (upper ? -DIAG : +DIAG);
-
-      const bc = badgeColorFor(f);
-      svgCircle(svg, bx, by, 5.5, { fill: bc });
-      svgText(svg, bx, by, String(f),
-        { 'text-anchor': 'middle', 'dominant-baseline': 'middle',
-          'font-size': '6.5', 'font-family': 'monospace', 'font-weight': 'bold',
-          fill: '#fff' });
-    });
-
-    // ── B: Left column — one badge per non-muted string ─────────────────────
-    // Sits in the FCOL_W region to the left of the ×/open symbols.
-    // Avoids collision with the ×/open area (which is at mLeft - 10).
-    // Fretted notes show finger number; open strings show 'o'; muted = nothing.
-    const COL_X = FCOL_W / 2;   // centre of the column
+    // ── Left column badges ────────────────────────────────────────────────
+    // One badge per non-muted string aligned to its string Y.
+    // Fretted notes → finger number; open strings → 'o'; muted → nothing.
     voicing.forEach((v, strIdx) => {
       const f = fingering.fingers[strIdx];
-      if (f === null) return;    // muted — × already displayed, no column badge
+      if (f === null) return;    // muted — already shown by ×
 
       const cy    = strY(strIdx);
       const label = f === 0 ? 'o' : String(f);
-      const bc    = f === 0 ? '#888'
-                  : badgeColorFor(f);
+      const bc    = f === 0 ? '#777' : badgeColorFor(f);
       svgCircle(svg, COL_X, cy, 5.5, { fill: bc, stroke: '#fff', 'stroke-width': 0.8 });
       svgText(svg, COL_X, cy, label,
         { 'text-anchor': 'middle', 'dominant-baseline': 'middle',
