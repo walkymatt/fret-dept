@@ -273,6 +273,28 @@ describe('findBestVoicingInWindow()', () => {
     [9, 0, 4].forEach(pc => expect(pcs.has(pc)).toBe(true));
   });
 
+  // Open-string fallback behaviour
+  it('open D offered as fallback for G major at windowStart=1 (no G-major tone on D in [1,5))', () => {
+    // G major = G(7), B(11), D(2).  D string has no G-major tone in frets 1-4;
+    // open D (pc=2, the 5th) should be included so the chord is complete.
+    const v = findBestVoicingInWindow(G_PCS, STD, 1, 4);
+    expect(v).not.toBeNull();
+    const pcs = new Set(v.filter(Boolean).map(n => n.pc));
+    G_PCS.forEach(pc => expect(pcs.has(pc)).toBe(true)); // all tones present
+    // D string (strIdx 2) should carry the D (pc 2) at fret 0
+    expect(v[2]).not.toBeNull();
+    expect(v[2].fret).toBe(0);
+    expect(v[2].pc).toBe(2);
+  });
+  it('in-window fretted note preferred over open when both available (barre preserved)', () => {
+    // G major at windowStart=3: D string has G at fret 5 (inside [3,7)),
+    // so open D should NOT displace it.  The voicing should use a fretted D-string note.
+    const v = findBestVoicingInWindow(G_PCS, STD, 3, 4);
+    expect(v).not.toBeNull();
+    const dStr = v[2]; // D string strIdx=2
+    if (dStr !== null) expect(dStr.fret).toBeGreaterThan(0); // not open
+  });
+
   // requiredBassPc
   it('requiredBassPc=4: C 1st inv — lowest sounding string has pc 4 (E)', () => {
     const v = findBestVoicingInWindow(C_PCS, STD, 0, 4, 4);
@@ -387,6 +409,32 @@ describe('identifyCagedShape()', () => {
   });
   it('D shape: root on strIdx 2, strings 0&1 muted → D', () => {
     expect(identifyCagedShape(D_OPEN_VOICING)).toBe('D');
+  });
+  it('D-shape barre (root on D = lowest fret of top-4) → D', () => {
+    // G major D-shape at fret 5: D@5(root), G@7(5th), B@8(root), e@7(3rd)
+    // Root on D string is the LOWEST fret among top-4 → D shape
+    const v = [
+      null,
+      null,
+      pos(2, 5,  7, 0),  // D fret 5 = G, root   ← lowest fret of the four
+      pos(3, 7,  2, 2),  // G fret 7 = D, 5th
+      pos(4, 8,  7, 0),  // B fret 8 = G, root
+      pos(5, 7, 11, 1),  // e fret 7 = B, 3rd
+    ];
+    expect(identifyCagedShape(v)).toBe('D');
+  });
+  it('E-barre with muted low strings (root on D = highest fret of top-4) → E', () => {
+    // C major E-barre at fret 8, low E + A muted: D@10(root), G@9(3rd), B@8(5th), e@8(root)
+    // Root on D string is the HIGHEST fret among top-4 → E shape
+    const v = [
+      null,
+      null,
+      pos(2, 10, 0, 0),  // D fret 10 = C, root  ← highest fret of the four
+      pos(3,  9, 4, 1),  // G fret  9 = E, 3rd
+      pos(4,  8, 7, 2),  // B fret  8 = G, 5th   ← barre fret
+      pos(5,  8, 0, 0),  // e fret  8 = C, root
+    ];
+    expect(identifyCagedShape(v)).toBe('E');
   });
   it('root on strIdx 1 but string 0 not muted → null', () => {
     const v = [
