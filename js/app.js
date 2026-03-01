@@ -20,6 +20,8 @@ import {
   renderChordDiagram, renderScaleDiagram,
 } from './renderer.js';
 
+import { assignFingering } from './fingering.js';
+
 const FRETBOARD_FRETS = 12;
 const VOICING_FRETS   = 22;
 
@@ -167,7 +169,8 @@ function renderPositionNav(scrollToActive = false) {
     card.className = 'voicing-card' + (idx === positionIndex ? ' active' : '');
     const diagEl = document.createElement('div');
     diagEl.className = 'voicing-diagram';
-    renderChordDiagram(diagEl, v.voicing, degrees);
+    const fingering = assignFingering(v.voicing);
+    renderChordDiagram(diagEl, v.voicing, degrees, { fingering });
     const lbl = document.createElement('div');
     lbl.className   = 'voicing-card-label';
     lbl.textContent = v.cagedShape ? `${v.cagedShape}  fr${v.windowStart}` : `fr${v.windowStart}`;

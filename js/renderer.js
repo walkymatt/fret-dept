@@ -221,10 +221,15 @@ export function renderChordDiagram(container, voicing, degreeLabels = [], opts =
   const DR      = 7;           // note dot radius
   const NW      = 5;           // nut width
 
-  const mTop    = 20;          // above top string — keeps open/mute symbols inside SVG
-  const mLeft   = 22;          // left margin for × / open-string symbols
+  const mTop    = 20;          // above top string
   const mRight  = 6;
   const mBottom = 30;          // below bottom string for fret label
+
+  // When a fingering is provided, reserve a column on the left for finger-number
+  // badges (one per string), push the existing ×/open symbols to the right.
+  const fingering = opts.fingering ?? null;
+  const FCOL_W  = fingering ? 16 : 0;  // width of the finger-number column
+  const mLeft   = 22 + FCOL_W;         // left margin for ×/open symbols
 
   const boardW  = FRETS * FW;
   const boardH  = (STRINGS - 1) * SS;
@@ -247,7 +252,23 @@ export function renderChordDiagram(container, voicing, degreeLabels = [], opts =
     preserveAspectRatio: 'xMidYMid meet',
   });
 
-  // Fretboard body
+  // ── Barre bracket (drawn first, sits behind dots) ─────────────────────────
+  // A filled rounded-rect at the barre fret's X, spanning fromString→toString.
+  // Always at the first (leftmost) fret slot because the barre is always at
+  // minFret — the reference point from which all relative offsets are measured.
+  if (fingering?.barre) {
+    const { fromString, toString } = fingering.barre;
+    const bx  = mLeft + 0.5 * FW;
+    // toString > fromString always; higher strIdx → lower Y in SVG
+    const by1 = strY(toString  - 1);   // top of bracket (higher string = lower y)
+    const by2 = strY(fromString - 1);  // bottom of bracket (lower string = higher y)
+    const barreColor = fingering.semi
+      ? 'rgba(230,126,34,0.45)'   // amber — semi-barre warning
+      : 'rgba(44,62,80,0.30)';    // dark grey — clean barre
+    svgRect(svg, bx - 4, by1, 8, by2 - by1, { fill: barreColor, rx: 4 });
+  }
+
+  // ── Fretboard body ────────────────────────────────────────────────────────
   svgRect(svg, mLeft, mTop, boardW, boardH,
     { fill: cfg.fretboardColor, rx: 1 });
 
@@ -282,7 +303,7 @@ export function renderChordDiagram(container, voicing, degreeLabels = [], opts =
         'font-size': '9', 'font-family': 'monospace', fill: '#000' });
   }
 
-  // Left-of-nut symbols: × for muted, coloured dot for open string
+  // ── Left-of-nut symbols: × for muted, coloured dot for open string ─────────
   voicing.forEach((v, strIdx) => {
     const x = mLeft - 10;
     const y = strY(strIdx);
@@ -300,10 +321,10 @@ export function renderChordDiagram(container, voicing, degreeLabels = [], opts =
     }
   });
 
-  // Fretted note dots
+  // ── Fretted note dots ─────────────────────────────────────────────────────
   voicing.forEach((v, strIdx) => {
     if (v === null || v.fret === 0) return;
-    const fretPos = v.fret - minFret;              // 0-indexed from left edge
+    const fretPos = v.fret - minFret;
     const x       = mLeft + (fretPos + 0.5) * FW;
     const y       = strY(strIdx);
     const color   = degreeColor(v.degreeIndex, cfg);
@@ -313,6 +334,75 @@ export function renderChordDiagram(container, voicing, degreeLabels = [], opts =
         'font-size': '8', 'font-family': 'sans-serif', 'font-weight': 'bold',
         fill: cfg.labelColor });
   });
+
+  // ── Fingering overlays ────────────────────────────────────────────────────
+  if (fingering) {
+    // Badge colours per finger type
+    const badgeColorFor = f =>
+      f === '?' ? '#e74c3c' :   // impossible  — red
+      f === 'T' ? '#8e44ad' :   // thumb        — purple
+      '#2c3e50';                 // fingers 1–4  — dark slate
+
+    // ── A: Diagonal badges beside each fretted dot ──────────────────────────
+    // Upper strings (strIdx ≥ 3 = G, B, high e): badge shifts upper-right.
+    // Lower strings (strIdx < 3 = D, A, low E):   badge shifts lower-left.
+    // This fans badges away from the string area for adjacent fret columns,
+    // avoiding overlap both with the dot label and with adjacent-string dots.
+    const DIAG = 9;   // px offset magnitude in each axis
+    voicing.forEach((v, strIdx) => {
+      if (v === null || v.fret === 0) return;
+      const f = fingering.fingers[strIdx];
+      if (f === null || f === 0) return;   // open strings need no badge
+
+      const fretPos = v.fret - minFret;
+      const cx = mLeft + (fretPos + 0.5) * FW;
+      const cy = strY(strIdx);
+
+      const upper = strIdx >= 3;
+      const bx = cx + (upper ? +DIAG : -DIAG);
+      const by = cy + (upper ? -DIAG : +DIAG);
+
+      const bc = badgeColorFor(f);
+      svgCircle(svg, bx, by, 5.5, { fill: bc });
+      svgText(svg, bx, by, String(f),
+        { 'text-anchor': 'middle', 'dominant-baseline': 'middle',
+          'font-size': '6.5', 'font-family': 'monospace', 'font-weight': 'bold',
+          fill: '#fff' });
+    });
+
+    // ── B: Left column — one badge per non-muted string ─────────────────────
+    // Sits in the FCOL_W region to the left of the ×/open symbols.
+    // Avoids collision with the ×/open area (which is at mLeft - 10).
+    // Fretted notes show finger number; open strings show 'o'; muted = nothing.
+    const COL_X = FCOL_W / 2;   // centre of the column
+    voicing.forEach((v, strIdx) => {
+      const f = fingering.fingers[strIdx];
+      if (f === null) return;    // muted — × already displayed, no column badge
+
+      const cy    = strY(strIdx);
+      const label = f === 0 ? 'o' : String(f);
+      const bc    = f === 0 ? '#888'
+                  : badgeColorFor(f);
+      svgCircle(svg, COL_X, cy, 5.5, { fill: bc, stroke: '#fff', 'stroke-width': 0.8 });
+      svgText(svg, COL_X, cy, label,
+        { 'text-anchor': 'middle', 'dominant-baseline': 'middle',
+          'font-size': '6.5', 'font-family': 'monospace', 'font-weight': 'bold',
+          fill: '#fff' });
+    });
+
+    // ── C: Difficulty badge — top-right corner ───────────────────────────────
+    const diffColor = fingering.difficulty <= 2 ? '#27ae60'
+                    : fingering.difficulty <= 3  ? '#e67e22'
+                    : '#e74c3c';
+    const diffLabel = fingering.impossible ? '!' : String(fingering.difficulty);
+    const dx = svgW - 7;
+    const dy = 9;
+    svgCircle(svg, dx, dy, 6.5, { fill: diffColor });
+    svgText(svg, dx, dy, diffLabel,
+      { 'text-anchor': 'middle', 'dominant-baseline': 'middle',
+        'font-size': '7', 'font-family': 'monospace', 'font-weight': 'bold',
+        fill: '#fff' });
+  }
 
   container.innerHTML = '';
   container.appendChild(svg);

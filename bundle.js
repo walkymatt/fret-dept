@@ -610,9 +610,11 @@ function renderChordDiagram(container, voicing, degreeLabels = [], opts = {}) {
   const DR = 7;
   const NW = 5;
   const mTop = 20;
-  const mLeft = 22;
   const mRight = 6;
   const mBottom = 30;
+  const fingering = opts.fingering ?? null;
+  const FCOL_W = fingering ? 16 : 0;
+  const mLeft = 22 + FCOL_W;
   const boardW = FRETS * FW;
   const boardH = (STRINGS - 1) * SS;
   const svgW = mLeft + boardW + mRight;
@@ -630,6 +632,14 @@ function renderChordDiagram(container, voicing, degreeLabels = [], opts = {}) {
     viewBox: `0 0 ${svgW} ${svgH}`,
     preserveAspectRatio: "xMidYMid meet"
   });
+  if (fingering?.barre) {
+    const { fromString, toString } = fingering.barre;
+    const bx = mLeft + 0.5 * FW;
+    const by1 = strY(toString - 1);
+    const by2 = strY(fromString - 1);
+    const barreColor = fingering.semi ? "rgba(230,126,34,0.45)" : "rgba(44,62,80,0.30)";
+    svgRect(svg, bx - 4, by1, 8, by2 - by1, { fill: barreColor, rx: 4 });
+  }
   svgRect(svg, mLeft, mTop, boardW, boardH, { fill: cfg.fretboardColor, rx: 1 });
   if (isOpen) {
     svgRect(svg, mLeft - NW / 2, mTop - 1, NW, boardH + 2, { fill: cfg.nutColor, rx: 1 });
@@ -695,6 +705,64 @@ function renderChordDiagram(container, voicing, degreeLabels = [], opts = {}) {
       fill: cfg.labelColor
     });
   });
+  if (fingering) {
+    const badgeColorFor = (f) => f === "?" ? "#e74c3c" : f === "T" ? "#8e44ad" : "#2c3e50";
+    const DIAG = 9;
+    voicing.forEach((v, strIdx) => {
+      if (v === null || v.fret === 0)
+        return;
+      const f = fingering.fingers[strIdx];
+      if (f === null || f === 0)
+        return;
+      const fretPos = v.fret - minFret;
+      const cx = mLeft + (fretPos + 0.5) * FW;
+      const cy = strY(strIdx);
+      const upper = strIdx >= 3;
+      const bx = cx + (upper ? +DIAG : -DIAG);
+      const by = cy + (upper ? -DIAG : +DIAG);
+      const bc = badgeColorFor(f);
+      svgCircle(svg, bx, by, 5.5, { fill: bc });
+      svgText(svg, bx, by, String(f), {
+        "text-anchor": "middle",
+        "dominant-baseline": "middle",
+        "font-size": "6.5",
+        "font-family": "monospace",
+        "font-weight": "bold",
+        fill: "#fff"
+      });
+    });
+    const COL_X = FCOL_W / 2;
+    voicing.forEach((v, strIdx) => {
+      const f = fingering.fingers[strIdx];
+      if (f === null)
+        return;
+      const cy = strY(strIdx);
+      const label = f === 0 ? "o" : String(f);
+      const bc = f === 0 ? "#888" : badgeColorFor(f);
+      svgCircle(svg, COL_X, cy, 5.5, { fill: bc, stroke: "#fff", "stroke-width": 0.8 });
+      svgText(svg, COL_X, cy, label, {
+        "text-anchor": "middle",
+        "dominant-baseline": "middle",
+        "font-size": "6.5",
+        "font-family": "monospace",
+        "font-weight": "bold",
+        fill: "#fff"
+      });
+    });
+    const diffColor = fingering.difficulty <= 2 ? "#27ae60" : fingering.difficulty <= 3 ? "#e67e22" : "#e74c3c";
+    const diffLabel = fingering.impossible ? "!" : String(fingering.difficulty);
+    const dx = svgW - 7;
+    const dy = 9;
+    svgCircle(svg, dx, dy, 6.5, { fill: diffColor });
+    svgText(svg, dx, dy, diffLabel, {
+      "text-anchor": "middle",
+      "dominant-baseline": "middle",
+      "font-size": "7",
+      "font-family": "monospace",
+      "font-weight": "bold",
+      fill: "#fff"
+    });
+  }
   container.innerHTML = "";
   container.appendChild(svg);
 }
@@ -784,6 +852,572 @@ function renderLegend(container, degreeLabels, noteNames = [], opts = {}) {
     item.appendChild(lbl);
     container.appendChild(item);
   });
+}
+// data/fingerings.json
+var fingerings_default = {
+  version: 1,
+  format: {
+    strings: "6-element array, index 0 = string 1 = low E, index 5 = string 6 = high e. Values: null = muted/not played; 0 = open string (open:true) or at barre reference fret (open:false); positive integer = fret number (open:true) or offset above barre reference fret (open:false).",
+    fingers: "6-element array, same indexing. Values: null = muted; 0 = open string (no finger); 1-4 = finger (1=index, 2=middle, 3=ring, 4=pinky); 'T' = thumb over the neck.",
+    barre: "null, or { finger, fromString, toString } where fromString/toString are 1-indexed (1=low E, 6=high e). Describes which finger lays flat across which string span at the barre reference fret.",
+    open: "true = open-position chord; match by exact absolute fret values. false = moveable shape; match by normalising the voicing (subtract min fret) and comparing relative offsets.",
+    difficulty_hints: "semi_barre field flags a barre with one open string inside the span — much harder than a clean barre, should carry a heavy difficulty penalty."
+  },
+  matching: {
+    open_true: "If any string in the incoming voicing is at absolute fret 0, look only in open:true entries and match strings[] element-for-element (null==null, fret==fret).",
+    open_false: "Otherwise compute minFret = min(non-null frets). Subtract minFret from every non-null fret to get a relative pattern. Match against open:false entries on that pattern.",
+    no_match: "Fall through to the algorithmic finger-assignment if no entry matches."
+  },
+  shapes: [
+    {
+      id: "open-e-major",
+      name: "E major",
+      chordType: "major",
+      tags: ["open", "caged-e"],
+      open: true,
+      strings: [0, 2, 2, 1, 0, 0],
+      fingers: [0, 2, 3, 1, 0, 0],
+      barre: null
+    },
+    {
+      id: "open-e-minor",
+      name: "E minor",
+      chordType: "minor",
+      tags: ["open", "caged-e"],
+      open: true,
+      strings: [0, 2, 2, 0, 0, 0],
+      fingers: [0, 2, 3, 0, 0, 0],
+      barre: null,
+      notes: "Some players prefer index+middle (1,2) to keep ring free for Em7 variations."
+    },
+    {
+      id: "open-e-dom7",
+      name: "E7",
+      chordType: "dom7",
+      tags: ["open", "caged-e"],
+      open: true,
+      strings: [0, 2, 0, 1, 0, 0],
+      fingers: [0, 2, 0, 1, 0, 0],
+      barre: null
+    },
+    {
+      id: "open-e-min7",
+      name: "Em7",
+      chordType: "min7",
+      tags: ["open", "caged-e"],
+      open: true,
+      strings: [0, 2, 0, 0, 0, 0],
+      fingers: [0, 2, 0, 0, 0, 0],
+      barre: null,
+      notes: "Minimal voicing: only the A string is fretted; D and G strings open provide the minor 7th and minor 3rd."
+    },
+    {
+      id: "open-e-maj7",
+      name: "Emaj7",
+      chordType: "maj7",
+      tags: ["open", "caged-e"],
+      open: true,
+      strings: [0, 2, 1, 1, 0, 0],
+      fingers: [0, 3, 1, 2, 0, 0],
+      barre: null,
+      notes: "D and G strings at same fret: index on D (lower string), middle on G (higher string). Ring then reaches A at fret 2."
+    },
+    {
+      id: "open-a-major",
+      name: "A major",
+      chordType: "major",
+      tags: ["open", "caged-a"],
+      open: true,
+      strings: [null, 0, 2, 2, 2, 0],
+      fingers: [null, 0, 1, 2, 3, 0],
+      barre: null,
+      notes: "Alternative: barre index across D/G/B strings. Alternative: middle+ring+pinky leaves index free for transitions."
+    },
+    {
+      id: "open-a-minor",
+      name: "A minor",
+      chordType: "minor",
+      tags: ["open", "caged-a"],
+      open: true,
+      strings: [null, 0, 2, 2, 1, 0],
+      fingers: [null, 0, 3, 2, 1, 0],
+      barre: null,
+      notes: "Conventional fingering has ring on D and middle on G — opposite of the lower-string/lower-finger rule. Index on B at fret 1 is the anchor."
+    },
+    {
+      id: "open-a-dom7",
+      name: "A7",
+      chordType: "dom7",
+      tags: ["open", "caged-a"],
+      open: true,
+      strings: [null, 0, 2, 0, 2, 0],
+      fingers: [null, 0, 1, 0, 2, 0],
+      barre: null,
+      notes: "D and B at same fret 2: index on D (lower string), middle on B (higher string)."
+    },
+    {
+      id: "open-a-min7",
+      name: "Am7",
+      chordType: "min7",
+      tags: ["open", "caged-a"],
+      open: true,
+      strings: [null, 0, 2, 0, 1, 0],
+      fingers: [null, 0, 2, 0, 1, 0],
+      barre: null,
+      notes: "Index on B (fret 1), middle on D (fret 2). G and high e open."
+    },
+    {
+      id: "open-a-maj7",
+      name: "Amaj7",
+      chordType: "maj7",
+      tags: ["open", "caged-a"],
+      open: true,
+      strings: [null, 0, 2, 1, 2, 0],
+      fingers: [null, 0, 2, 1, 3, 0],
+      barre: null,
+      notes: "Index on G (fret 1). D and B at fret 2: middle on D (lower string), ring on B (higher string)."
+    },
+    {
+      id: "open-d-major",
+      name: "D major",
+      chordType: "major",
+      tags: ["open", "caged-d"],
+      open: true,
+      strings: [null, null, 0, 2, 3, 2],
+      fingers: [null, null, 0, 2, 3, 1],
+      barre: null,
+      notes: "Conventional fingering crosses the lower-string/lower-finger rule: index on high e (fret 2), middle on G (fret 2), ring on B (fret 3). This arch is comfortable and common."
+    },
+    {
+      id: "open-d-minor",
+      name: "D minor",
+      chordType: "minor",
+      tags: ["open", "caged-d"],
+      open: true,
+      strings: [null, null, 0, 2, 3, 1],
+      fingers: [null, null, 0, 2, 3, 1],
+      barre: null,
+      notes: "Index on high e (fret 1), middle on G (fret 2), ring on B (fret 3)."
+    },
+    {
+      id: "open-d-dom7",
+      name: "D7",
+      chordType: "dom7",
+      tags: ["open", "caged-d"],
+      open: true,
+      strings: [null, null, 0, 2, 1, 2],
+      fingers: [null, null, 0, 2, 1, 3],
+      barre: null,
+      notes: "Index on B (fret 1). G and high e at fret 2: middle on G (lower string), ring on high e (higher string)."
+    },
+    {
+      id: "open-g-major",
+      name: "G major",
+      chordType: "major",
+      tags: ["open", "caged-g"],
+      open: true,
+      strings: [3, 2, 0, 0, 0, 3],
+      fingers: [3, 2, 0, 0, 0, 4],
+      barre: null,
+      notes: "Ring on low E (fret 3), middle on A (fret 2), pinky on high e (fret 3). Alternative thumb version: T on low E, index on A, middle on high e — frees ring+pinky but requires thumb-over technique."
+    },
+    {
+      id: "open-g-dom7",
+      name: "G7",
+      chordType: "dom7",
+      tags: ["open", "caged-g"],
+      open: true,
+      strings: [3, 2, 0, 0, 0, 1],
+      fingers: [3, 2, 0, 0, 0, 1],
+      barre: null,
+      notes: "Index on high e (fret 1), middle on A (fret 2), ring on low E (fret 3)."
+    },
+    {
+      id: "open-c-major",
+      name: "C major",
+      chordType: "major",
+      tags: ["open", "caged-c"],
+      open: true,
+      strings: [null, 3, 2, 0, 1, 0],
+      fingers: [null, 3, 2, 0, 1, 0],
+      barre: null,
+      notes: "Ring on A (fret 3), middle on D (fret 2), index on B (fret 1). Classic CAGED C shape."
+    },
+    {
+      id: "open-c-maj7",
+      name: "Cmaj7",
+      chordType: "maj7",
+      tags: ["open", "caged-c"],
+      open: true,
+      strings: [null, 3, 2, 0, 0, 0],
+      fingers: [null, 3, 2, 0, 0, 0],
+      barre: null,
+      notes: "C major with B open as the major 7th. Ring on A, middle on D; G, B, high e all open."
+    },
+    {
+      id: "open-c-dom7",
+      name: "C7",
+      chordType: "dom7",
+      tags: ["open", "caged-c"],
+      open: true,
+      strings: [null, 3, 2, 3, 1, 0],
+      fingers: [null, 3, 2, 4, 1, 0],
+      barre: null,
+      notes: "Index on B (fret 1), middle on D (fret 2). A and G both at fret 3: ring on A (lower string), pinky on G (higher string). High e open."
+    },
+    {
+      id: "open-b-dom7",
+      name: "B7",
+      chordType: "dom7",
+      tags: ["open"],
+      open: true,
+      strings: [null, 2, 1, 2, 0, 2],
+      fingers: [null, 2, 1, 3, 0, 4],
+      barre: null,
+      notes: "Index on D (fret 1). A, G, and high e all at fret 2: middle on A (lowest of the three strings), ring on G, pinky on high e. B string open. The middle finger reaching down to A while index is on D is physically unusual but conventional for this chord."
+    },
+    {
+      id: "open-e5",
+      name: "E5 (power chord)",
+      chordType: "power",
+      tags: ["open", "power"],
+      open: true,
+      strings: [0, 2, 2, null, null, null],
+      fingers: [0, 2, 3, null, null, null],
+      barre: null,
+      notes: "Low E open, middle on A (fret 2), ring on D (fret 2). G/B/high e muted with fretting-hand palm or simply not struck."
+    },
+    {
+      id: "barre-e-major",
+      name: "E-shape barre (major)",
+      chordType: "major",
+      tags: ["barre", "caged-e", "moveable"],
+      open: false,
+      strings: [0, 2, 2, 1, 0, 0],
+      fingers: [1, 3, 4, 2, 1, 1],
+      barre: { finger: 1, fromString: 1, toString: 6 },
+      notes: "Full 6-string barre with index. Middle on G (rel+1), ring on A (rel+2), pinky on D (rel+2). B and high e held by barre. Covers F, F#, G, Ab, A, Bb, B etc."
+    },
+    {
+      id: "barre-e-minor",
+      name: "E-shape barre (minor)",
+      chordType: "minor",
+      tags: ["barre", "caged-e", "moveable"],
+      open: false,
+      strings: [0, 2, 2, 0, 0, 0],
+      fingers: [1, 3, 4, 1, 1, 1],
+      barre: { finger: 1, fromString: 1, toString: 6 },
+      notes: "Full barre. Ring on A (rel+2), pinky on D (rel+2). G, B, high e, low E all held by barre index."
+    },
+    {
+      id: "barre-e-dom7",
+      name: "E-shape barre (dom7)",
+      chordType: "dom7",
+      tags: ["barre", "caged-e", "moveable"],
+      open: false,
+      strings: [0, 2, 0, 1, 0, 0],
+      fingers: [1, 3, 1, 2, 1, 1],
+      barre: { finger: 1, fromString: 1, toString: 6 },
+      notes: "Full barre. Middle on G (rel+1), ring on A (rel+2). D string at barre fret (minor 7th) held by index barre."
+    },
+    {
+      id: "barre-e-maj7",
+      name: "E-shape barre (maj7)",
+      chordType: "maj7",
+      tags: ["barre", "caged-e", "moveable"],
+      open: false,
+      strings: [0, 2, 1, 1, 0, 0],
+      fingers: [1, 4, 2, 3, 1, 1],
+      barre: { finger: 1, fromString: 1, toString: 6 },
+      notes: "Full barre. D and G both at rel+1: index(barre) covers everything at rel 0; middle on D (rel+1, lower string), ring on G (rel+1, higher string); pinky on A (rel+2)."
+    },
+    {
+      id: "barre-a-major",
+      name: "A-shape barre (major)",
+      chordType: "major",
+      tags: ["barre", "caged-a", "moveable"],
+      open: false,
+      strings: [null, 0, 2, 2, 2, 0],
+      fingers: [null, 1, 2, 3, 4, 1],
+      barre: { finger: 1, fromString: 2, toString: 6 },
+      notes: "Low E muted (or optionally sounded as the 5th if it falls on a chord tone). 5-string barre with index across strings 2-6. Middle, ring, pinky on D/G/B at rel+2. Alternative: ring-finger barre across D/G/B leaving index free."
+    },
+    {
+      id: "barre-a-minor",
+      name: "A-shape barre (minor)",
+      chordType: "minor",
+      tags: ["barre", "caged-a", "moveable"],
+      open: false,
+      strings: [null, 0, 2, 2, 1, 0],
+      fingers: [null, 1, 3, 4, 2, 1],
+      barre: { finger: 1, fromString: 2, toString: 6 },
+      notes: "5-string barre. Middle on B (rel+1), ring on D (rel+2), pinky on G (rel+2). A and high e held by barre."
+    },
+    {
+      id: "barre-a-dom7",
+      name: "A-shape barre (dom7)",
+      chordType: "dom7",
+      tags: ["barre", "caged-a", "moveable"],
+      open: false,
+      strings: [null, 0, 2, 0, 2, 0],
+      fingers: [null, 1, 2, 1, 3, 1],
+      barre: { finger: 1, fromString: 2, toString: 6 },
+      notes: "5-string barre. A, G, high e held by index at barre fret. Middle on D (rel+2), ring on B (rel+2)."
+    },
+    {
+      id: "barre-a-min7",
+      name: "A-shape barre (min7)",
+      chordType: "min7",
+      tags: ["barre", "caged-a", "moveable"],
+      open: false,
+      strings: [null, 0, 2, 0, 1, 0],
+      fingers: [null, 1, 3, 1, 2, 1],
+      barre: { finger: 1, fromString: 2, toString: 6 },
+      notes: "5-string barre. A, G, high e held by index. Middle on B (rel+1), ring on D (rel+2)."
+    },
+    {
+      id: "barre-a-maj7",
+      name: "A-shape barre (maj7)",
+      chordType: "maj7",
+      tags: ["barre", "caged-a", "moveable"],
+      open: false,
+      strings: [null, 0, 2, 1, 2, 0],
+      fingers: [null, 1, 3, 2, 4, 1],
+      barre: { finger: 1, fromString: 2, toString: 6 },
+      notes: "5-string barre. Index holds A and high e. Middle on G (rel+1). D and B at rel+2: ring on D (lower string), pinky on B (higher string)."
+    },
+    {
+      id: "barre-d-major",
+      name: "D-shape barre (major)",
+      chordType: "major",
+      tags: ["barre", "caged-d", "moveable"],
+      open: false,
+      strings: [null, null, 0, 2, 3, 2],
+      fingers: [null, null, 1, 2, 4, 3],
+      barre: { finger: 1, fromString: 3, toString: 6 },
+      notes: "4-string mini-barre with index across D/G/B/high-e. Middle on G (rel+2), ring on high e (rel+2), pinky on B (rel+3). Low E and A muted. Works cleanly above fret 5."
+    },
+    {
+      id: "power-2string",
+      name: "Power chord (2-string)",
+      chordType: "power",
+      tags: ["barre", "moveable", "power"],
+      open: false,
+      strings: [0, 2, null, null, null, null],
+      fingers: [1, 3, null, null, null, null],
+      barre: null,
+      notes: "Index on low string (root), ring on next string (5th). Middle finger kept free — allows quick pinky reach for fills. G/B/high e muted by fretting hand."
+    },
+    {
+      id: "power-3string",
+      name: "Power chord with octave (3-string)",
+      chordType: "power",
+      tags: ["barre", "moveable", "power"],
+      open: false,
+      strings: [0, 2, 2, null, null, null],
+      fingers: [1, 3, 4, null, null, null],
+      barre: null,
+      notes: "Index on root, ring on 5th (str+1), pinky on octave (str+2). Both upper strings at rel+2: ring on the lower (str+1), pinky on the higher (str+2)."
+    }
+  ]
+};
+
+// js/fingering.js
+var SHAPES = fingerings_default.shapes;
+function lookupFingering(voicing) {
+  const frets = voicing.map((n) => n === null ? null : n.fret);
+  const hasOpen = frets.some((f) => f === 0);
+  if (hasOpen) {
+    return SHAPES.find((s) => s.open && frets.every((f, i) => f === s.strings[i])) ?? null;
+  }
+  const nonNull = frets.filter((f) => f !== null);
+  if (nonNull.length === 0)
+    return null;
+  const minFret = Math.min(...nonNull);
+  const rel = frets.map((f) => f === null ? null : f - minFret);
+  return SHAPES.find((s) => !s.open && rel.every((f, i) => f === s.strings[i])) ?? null;
+}
+function detectBarre(frets) {
+  const frettedPairs = frets.map((f, i) => f !== null && f > 0 ? { str: i, fret: f } : null).filter(Boolean);
+  if (frettedPairs.length < 2)
+    return null;
+  const minFret = Math.min(...frettedPairs.map((n) => n.fret));
+  const atMin = frettedPairs.filter((n) => n.fret === minFret);
+  if (atMin.length < 2)
+    return null;
+  const fromStr = Math.min(...atMin.map((n) => n.str));
+  const toStr = Math.max(...atMin.map((n) => n.str));
+  let internalOpens = 0;
+  for (let i = fromStr + 1;i < toStr; i++) {
+    if (frets[i] === 0)
+      internalOpens++;
+  }
+  const above = frettedPairs.filter((n) => n.fret > minFret);
+  if (above.length > 3)
+    return null;
+  return {
+    fret: minFret,
+    fromString: fromStr + 1,
+    toString: toStr + 1,
+    semi: internalOpens > 0
+  };
+}
+function buildFingers(frets, barre) {
+  const fingers = new Array(6).fill(null);
+  frets.forEach((f, i) => {
+    if (f === 0)
+      fingers[i] = 0;
+  });
+  let notes = frets.map((f, i) => f !== null && f > 0 ? { str: i, fret: f } : null).filter(Boolean);
+  let nextFinger = 1;
+  if (barre) {
+    const lo = barre.fromString - 1;
+    const hi = barre.toString - 1;
+    notes.forEach((n) => {
+      if (n.fret === barre.fret && n.str >= lo && n.str <= hi) {
+        fingers[n.str] = 1;
+      }
+    });
+    notes = notes.filter((n) => !(n.fret === barre.fret && n.str >= lo && n.str <= hi));
+    nextFinger = 2;
+  }
+  notes.sort((a, b) => a.fret !== b.fret ? a.fret - b.fret : a.str - b.str);
+  let impossible = false;
+  for (const n of notes) {
+    if (nextFinger > 4) {
+      impossible = true;
+      break;
+    }
+    fingers[n.str] = nextFinger++;
+  }
+  return { fingers, impossible };
+}
+function algorithmicFingering(frets) {
+  const frettedNotes = frets.map((f, i) => f !== null && f > 0 ? { str: i, fret: f } : null).filter(Boolean).sort((a, b) => a.fret !== b.fret ? a.fret - b.fret : a.str - b.str);
+  if (frettedNotes.length <= 4) {
+    const fingers2 = new Array(6).fill(null);
+    frets.forEach((f, i) => {
+      if (f === 0)
+        fingers2[i] = 0;
+    });
+    frettedNotes.forEach((n, idx) => {
+      fingers2[n.str] = idx + 1;
+    });
+    return { fingers: fingers2, barre: null, impossible: false, semi: false };
+  }
+  if (frets[0] !== null && frets[0] > 0 && frets[0] <= 5) {
+    const rest = frettedNotes.filter((n) => n.str !== 0);
+    if (rest.length <= 4) {
+      const fingers2 = new Array(6).fill(null);
+      frets.forEach((f, i) => {
+        if (f === 0)
+          fingers2[i] = 0;
+      });
+      fingers2[0] = "T";
+      rest.forEach((n, idx) => {
+        fingers2[n.str] = idx + 1;
+      });
+      return { fingers: fingers2, barre: null, impossible: false, semi: false };
+    }
+  }
+  const barre = detectBarre(frets);
+  if (barre && !barre.semi) {
+    const { fingers: fingers2, impossible } = buildFingers(frets, barre);
+    if (!impossible) {
+      return {
+        fingers: fingers2,
+        barre: { finger: 1, fromString: barre.fromString, toString: barre.toString },
+        impossible: false,
+        semi: false
+      };
+    }
+  }
+  if (barre && barre.semi) {
+    const { fingers: fingers2, impossible } = buildFingers(frets, barre);
+    if (!impossible) {
+      return {
+        fingers: fingers2,
+        barre: { finger: 1, fromString: barre.fromString, toString: barre.toString },
+        impossible: false,
+        semi: true
+      };
+    }
+  }
+  const fingers = new Array(6).fill(null);
+  frets.forEach((f, i) => {
+    if (f === 0)
+      fingers[i] = 0;
+    else if (f !== null)
+      fingers[i] = "?";
+  });
+  return { fingers, barre: null, impossible: true, semi: false };
+}
+function computeDifficulty(frets, barre, semi, impossible) {
+  if (impossible)
+    return 5;
+  const nonZero = frets.filter((f) => f !== null && f > 0);
+  if (nonZero.length === 0)
+    return 1;
+  const minFret = Math.min(...nonZero);
+  const maxFret = Math.max(...nonZero);
+  const spread = maxFret - minFret;
+  let score = 0;
+  if (spread <= 1)
+    score += 0;
+  else if (spread <= 3)
+    score += 1;
+  else if (spread === 4)
+    score += 2;
+  else
+    score += 3;
+  if (barre) {
+    const span = barre.toString - barre.fromString + 1;
+    if (semi)
+      score += 3;
+    else if (span >= 5)
+      score += 2;
+    else
+      score += 1;
+  }
+  const playedIdxs = frets.map((f, i) => f !== null ? i : -1).filter((i) => i >= 0);
+  if (playedIdxs.length >= 2) {
+    const lo = playedIdxs[0];
+    const hi = playedIdxs[playedIdxs.length - 1];
+    for (let i = lo + 1;i < hi; i++) {
+      if (frets[i] === null)
+        score += 0.5;
+    }
+  }
+  if (minFret > 7)
+    score -= 0.5;
+  if (frets.some((f) => f === 0))
+    score -= 0.5;
+  return Math.max(1, Math.min(5, Math.round(score + 1)));
+}
+function assignFingering(voicing) {
+  const shape = lookupFingering(voicing);
+  if (shape) {
+    const barre = shape.barre ?? null;
+    const frets2 = voicing.map((n) => n === null ? null : n.fret);
+    return {
+      fingers: shape.fingers,
+      barre,
+      difficulty: computeDifficulty(frets2, barre, false, false),
+      impossible: false,
+      semi: false,
+      source: "lookup"
+    };
+  }
+  const frets = voicing.map((n) => n === null ? null : n.fret);
+  const algo = algorithmicFingering(frets);
+  return {
+    fingers: algo.fingers,
+    barre: algo.barre,
+    difficulty: computeDifficulty(frets, algo.barre, algo.semi, algo.impossible),
+    impossible: algo.impossible,
+    semi: algo.semi,
+    source: "algorithm"
+  };
 }
 
 // js/app.js
@@ -896,7 +1530,8 @@ function renderPositionNav(scrollToActive = false) {
     card.className = "voicing-card" + (idx === positionIndex ? " active" : "");
     const diagEl = document.createElement("div");
     diagEl.className = "voicing-diagram";
-    renderChordDiagram(diagEl, v.voicing, degrees);
+    const fingering = assignFingering(v.voicing);
+    renderChordDiagram(diagEl, v.voicing, degrees, { fingering });
     const lbl = document.createElement("div");
     lbl.className = "voicing-card-label";
     lbl.textContent = v.cagedShape ? `${v.cagedShape}  fr${v.windowStart}` : `fr${v.windowStart}`;
