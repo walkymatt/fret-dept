@@ -1,5 +1,6 @@
 Guitar — Chords & Scales: project summary
 ==========================================
+Release: v1.1.0
 
 Goal
 ----
@@ -11,7 +12,7 @@ HTML file (no server, no network, no external dependencies).
 
 Architecture
 ------------
-Three concerns are kept cleanly separated:
+Four concerns are kept cleanly separated:
 
 1. js/theory.js — music theory, instrument-agnostic
    Anchors everything to MIDI note numbers (C4 = 60). Pitch classes 0–11.
@@ -35,14 +36,15 @@ Three concerns are kept cleanly separated:
    - relativeMinor(majorRootPc), relativeMajor(minorRootPc), parallelMinor()
    - diatonicChords(rootPc, scaleName) → array of { degree, romanNumeral,
      rootPc, chordName } for all 7 scale degrees with correct case/suffix
-     (e.g. "ii", "vii°")
 
 2. js/fretboard.js — guitar fretboard layout, depends on theory.js
-   Strings numbered 1–6 (1 = lowest). Fret 0 = open string.
+   Strings numbered 1–6 (1 = lowest/low E). Fret 0 = open string.
+   TUNINGS values are note-name strings ('E2' etc.), not raw MIDI — always use
+   parseTuning() or read .pc from voicing objects rather than doing arithmetic.
    Exports:
    - parseTuning(spec) — accepts 6 MIDI numbers or note-name strings
-   - TUNINGS — 10 named tunings (standard, drop D, open G/D/E/A, DADGAD,
-     half/full step down, drop C); TUNING_LABELS
+   - TUNINGS — 10 named tunings (standard, drop_d, open_g/d/e/a, dadgad,
+     half_step_down, full_step_down, drop_c); TUNING_LABELS
    - buildFretboardMap(tuningSpec, maxFret) → number[][] — MIDI note at
      every [stringIndex][fret] position
    - findPositions(targetPcs, tuningSpec, maxFret) → array of
@@ -50,64 +52,132 @@ Three concerns are kept cleanly separated:
    - findBoxVoicing(targetPcs, tuningSpec, windowStart, windowSize) → one
      position per string (or null) within a fret window
    - filterByFretRange(positions, minFret, maxFret) → filtered array
+   - scoreVoicing(voicing, targetPcs, requiredBassPc?) → number
+     Scores a candidate chord voicing. requiredBassPc is a hard gate: if set,
+     any voicing whose lowest-string pc ≠ requiredBassPc returns 0 immediately.
+   - findBestVoicingInWindow(targetPcs, tuning, windowStart, windowSize,
+     requiredBassPc?) → voicing array | null
+   - findVoicingsAcrossNeck(targetPcs, tuning, maxFret, windowSize,
+     requiredBassPc?) → { windowStart, voicing, score, cagedShape }[]
+     Slides a 4-fret window across the neck, deduplicates adjacent identical
+     fingerings, returns one entry per distinct position.
+   - identifyCagedShape(voicing) → 'E'|'A'|'C'|'D'|'G'|null
+     Root on string 1 + 5th on A string → E shape.
+     Root on string 1 + 3rd on A string → G shape.
+     Root on string 2, string 1 muted, same fret inside → A shape.
+     Root on string 2, string 1 muted, different frets inside → C shape.
+     Root on string 3, strings 1+2 muted → D shape.
+   - findScalePositions(targetPcs, tuning, maxFret?) → { windowStart,
+     windowSize, notes }[]
+     Generates scale box positions across the neck:
+     • Anchors each position on a scale tone found on string 1 (frets 0–12).
+     • Collects all scale notes within a 5-fret window [anchor, anchor+4].
+     • Resolves cross-string MIDI duplicates (same pitch on adjacent strings)
+       by trying all assignments and keeping the one with the smallest fret span.
+     • After deduplication, checks connectivity: the last degree on string S
+       and the first degree on string S+1 must be adjacent in the scale.
+       Disconnected fragments are trimmed from the ends.
+     • Drops any position where the remaining connected run does not cover
+       all scale degrees (< one complete octave).
+     • Deduplicates by exact fingering fingerprint and sorts by windowStart.
 
 3. js/renderer.js — SVG fretboard drawing, depends on browser DOM only
+   All drawing uses inline SVG helper functions (svgRect, svgCircle, svgLine,
+   svgText). Colour scheme and layout constants in DEFAULTS, overridable via opts.
    Exports:
-   - renderFretboard(container, positions, degreeLabels, opts) — draws the
-     fretboard as inline SVG: wood-coloured body, nut, strings (varying
-     thickness), fret lines, inlay dots at 3/5/7/9/12 (double at 12), fret
-     number labels, coloured dots with degree labels at every note position.
-     Open-string notes appear left of the nut. Uses viewBox + CSS width:100%
-     so it scales responsively.
-   - renderLegend(container, degreeLabels, noteNames, opts) — coloured
-     swatches with degree + note name labels.
-   - Dots are coloured by degree index (root = red, 3rd = blue, 5th = green,
-     etc.). All colours and layout constants are overridable via opts.
+   - renderFretboard(container, positions, degreeLabels, opts)
+     Draws the full fretboard SVG: wood-coloured body, nut, strings (varying
+     thickness), fret lines, inlay dots, fret number labels, coloured dots
+     with degree labels. Open-string notes appear left of the nut.
+     opts.activeKeys — Set<"string:fret"> — those positions get a gold ring
+     that occludes the string line cleanly (disc matches ring-centre radius).
+   - renderChordDiagram(container, voicing, degreeLabels, opts?)
+     Compact horizontal mini-fretboard for one chord voicing. One dot per
+     string with degree label inside. Muted strings shown with ×. Open strings
+     shown to the left of the nut. Fret position label at bottom when not open.
+   - renderScaleDiagram(container, notes, windowStart, windowSize)
+     Compact horizontal mini-fretboard for one scale box position.
+     When windowStart=0: extra column to the left of the nut holds fret-0
+     (open string) dots; fret-1 dots are in the first fretted slot after the
+     nut — so open strings are visually distinct from fret-1 notes.
+     Every dot shows its scale degree number (1–7 etc.); root is white-on-red.
+   - renderLegend(container, degreeLabels, noteNames, opts?)
+     Coloured swatches with degree + note name labels.
 
 4. js/app.js — application shell, wires the above three together
-   Manages UI state: mode (chord/scale), root note, chord/scale type, tuning,
-   max fret (slider 5–24), flat/sharp toggle. Populates all dropdowns from
-   the data in theory.js and fretboard.js. Re-renders on every change.
-   Uses DOMContentLoaded so it is safe to load at end of <body>.
+   State: { mode, rootName, chordName, scaleName, tuningKey, inversion,
+            positionIndex, voicings, scalePositionIndex, scalePositions }
+   Chord mode:
+   - Calls findVoicingsAcrossNeck (VOICING_FRETS=22, windowSize=4).
+   - requiredBassPc = pitchClasses[state.inversion] when inversion > 0
+     (hard gate, not post-filter).
+   - Renders a scrollable gallery of renderChordDiagram cards.
+   - ◀▶ navigator; clicking a card updates state.positionIndex and highlights
+     the voicing on the main fretboard via opts.activeKeys.
+   - Inversion dropdown labels show slash notation (e.g. "C/E").
+   Scale mode:
+   - Calls findScalePositions (VOICING_FRETS=22).
+   - Renders a scrollable gallery of renderScaleDiagram cards.
+   - ◀▶ navigator; clicking a card highlights the box position on the main
+     fretboard via opts.activeKeys.
+   No music theory or fretboard logic in app.js — only delegation.
+
+
+UI / UX
+-------
+- String spacing: 40 px; dot radius: 11 px; adjacent ring outer edges have
+  ~5.5 px gap.
+- Fret-number y position: dynamic (cfg.marginTop + boardHeight +
+  Math.round(cfg.marginBottom / 2)) — always clears rings.
+- Active ring occlusion: filled disc at ring-centre radius (dotRadius+5)
+  makes the string line disappear cleanly at the ring outline.
+- Chord mode controls: root, chord type, inversion, tuning.
+- Scale mode controls: root, scale type, tuning.
+- No fret-range slider (removed); display frets fixed at 12, voicing
+  search at 22.
+- Flat spellings auto-detected from rootName.includes('b').
+- renderPositionNav / renderScaleNav default scrollToActive=false; only
+  card clicks and ◀▶ buttons pass true (avoids hijacking page load scroll).
 
 
 Build system
 ------------
-Source files are ES modules (import/export). Because browsers block cross-file
-ES module loads from file:// URLs (CORS/null-origin restriction), the app is
-bundled before use.
-
 Makefile targets:
-  make bundle      — bun build js/app.js → bundle.js (single plain script,
-                     no import/export, ~16 KB). Required before opening
-                     index.html.
-  make standalone  — runs bundle, then scripts/build-standalone.py, which
-                     uses regex substitution to inline css/styles.css and
-                     bundle.js into index.html, producing
-                     guitar-standalone.html (~22 KB). Zero external
-                     references. The primary distribution target.
-  make serve       — runs bundle then python3 -m http.server 5050
-  make test        — bun test (runs against ES module sources directly)
+  make bundle      — bun build js/app.js → bundle.js (~37 KB)
+  make standalone  — bundle + inline CSS/JS → guitar-standalone.html (~46 KB)
+  make serve       — bundle then python3 -m http.server 5050
+  make test        — bun test tests/
   make clean       — removes bundle.js and guitar-standalone.html
 
-bundle.js and guitar-standalone.html are both committed to the repo so the
-app is immediately usable after cloning without running make.
+bundle.js and guitar-standalone.html are committed to the repo.
+Run `make standalone` after every source change.
+Launch the server non-blocking (e.g. via tmux) so the shell is not blocked.
 
 
 Tests
 -----
 tests/theory.test.js and tests/fretboard.test.js use bun:test (Jest-like).
-179 tests total. Import directly from the ES module source files.
-Coverage includes: all note/MIDI helpers, all 15 scales, all 20 chords,
-inversions for triads and 7th chords, relative/parallel key relationships,
-diatonic chord analysis for major and natural minor, parseTuning, all 10
-named tunings, buildFretboardMap, findPositions (including open strings,
-cross-octave pitch classes, tuning variants, boundary conditions),
-findBoxVoicing, filterByFretRange.
+Run against ES module source files directly — no bundle needed.
+244 tests, 0 failures, 1874 expect() calls.
+
+Coverage includes:
+  theory.js: all MIDI/note helpers, all 15 scales, all 20 chords, inversions
+  for triads and 7th chords (including power chord), relative/parallel keys,
+  diatonic chord analysis. Property-based loops over every chord type for
+  inversion correctness.
+  fretboard.js: parseTuning, all 10 named tunings, buildFretboardMap,
+  findPositions (open strings, cross-octave, tuning variants, boundaries),
+  findBoxVoicing, filterByFretRange, scoreVoicing (requiredBassPc hard gate,
+  root-bass bonus, gap penalty), findBestVoicingInWindow (inversions,
+  impossible constraints), findVoicingsAcrossNeck (inversion, impossible bass),
+  identifyCagedShape (all 5 shapes including G, ambiguous fallback),
+  findScalePositions (contract, span minimisation, MIDI duplicate resolution,
+  full connectivity in standard tuning, Drop-D trimming).
 
 
 Design constraints
 ------------------
-- No runtime external dependencies (no CDN, no fonts, no network requests)
-- All new features should work in the standalone single-file build
-- Exceptions (e.g. audio sample fetching) require explicit justification
+- No runtime external dependencies (no CDN, no fonts, no network requests).
+- All new features must work in guitar-standalone.html (offline, file://).
+- Run `make standalone` after every code change.
+- Server must be launched non-blocking (e.g. via tmux).
