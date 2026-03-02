@@ -104,6 +104,9 @@ describe('getScalePitchClasses()', () => {
   it('C blues = [0,3,5,6,7,10]',        () => expect(getScalePitchClasses(0, 'blues')).toEqual([0,3,5,6,7,10]));
   it('C dorian = [0,2,3,5,7,9,10]',     () => expect(getScalePitchClasses(0, 'dorian')).toEqual([0,2,3,5,7,9,10]));
   it('C mixolydian = [0,2,4,5,7,9,10]', () => expect(getScalePitchClasses(0, 'mixolydian')).toEqual([0,2,4,5,7,9,10]));
+  it('C phrygian dominant = [0,1,4,5,7,8,10]', () => expect(getScalePitchClasses(0, 'phrygian_dominant')).toEqual([0,1,4,5,7,8,10]));
+  it('C double harmonic major = [0,1,4,5,7,8,11]', () => expect(getScalePitchClasses(0, 'double_harmonic_major')).toEqual([0,1,4,5,7,8,11]));
+  it('C double harmonic minor = [0,2,3,6,7,8,11]', () => expect(getScalePitchClasses(0, 'double_harmonic_minor')).toEqual([0,2,3,6,7,8,11]));
   it('all scales start at rootPc', () => {
     for (const name of Object.keys(SCALES)) expect(getScalePitchClasses(3, name)[0]).toBe(3);
   });

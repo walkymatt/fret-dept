@@ -150,6 +150,13 @@ describe('assignFingering() — algorithm fallback', () => {
     expect(r.fingers.every(f => f === null)).toBe(true);
   });
 
+  it('all open strings: fingers all 0, impossible=false, difficulty=1', () => {
+    const r = assignFingering(mkVoicing([0, 0, 0, 0, 0, 0]));
+    expect(r.impossible).toBe(false);
+    expect(r.difficulty).toBe(1);
+    expect(r.fingers.every(f => f === 0)).toBe(true);
+    expect(r.barre).toBeNull();
+  });
   it('single open string: difficulty=1, no finger needed', () => {
     const r = assignFingering(mkVoicing([null, 0, null, null, null, null]));
     expect(r.difficulty).toBe(1);

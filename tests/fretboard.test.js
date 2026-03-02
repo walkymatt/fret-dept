@@ -33,6 +33,7 @@ describe('TUNINGS', () => {
   });
   it('half_step_down = std-1 each',  () => { const s=parseTuning(STD),h=parseTuning(TUNINGS.half_step_down); for(let i=0;i<6;i++) expect(h[i]).toBe(s[i]-1); });
   it('full_step_down = std-2 each',  () => { const s=parseTuning(STD),f=parseTuning(TUNINGS.full_step_down); for(let i=0;i<6;i++) expect(f[i]).toBe(s[i]-2); });
+  it('open_c MIDI = [36,43,48,55,60,64]', () => expect(parseTuning(TUNINGS.open_c)).toEqual([36,43,48,55,60,64]));
 });
 
 describe('buildFretboardMap()', () => {
@@ -370,6 +371,16 @@ describe('findVoicingsAcrossNeck()', () => {
     const results = findVoicingsAcrossNeck(C_PCS, STD, 22, 4, 10);
     expect(results.length).toBe(0);
   });
+  it('requiredBassPc=root: every voicing has root (pc 0) as lowest sounding string', () => {
+    // Enforcing pcs[0] as bass catches open-low-E (pc 4 = E) slipping in as bass
+    // for C major — the bug that was fixed when root position used null bassPc.
+    const results = findVoicingsAcrossNeck(C_PCS, STD, 22, 4, C_PCS[0]);
+    expect(results.length).toBeGreaterThan(0);
+    results.forEach(({ voicing }) => {
+      const played = voicing.filter(Boolean).sort((a, b) => a.string - b.string);
+      expect(played[0].pc).toBe(0); // C must be the lowest note
+    });
+  });
 });
 
 describe('identifyCagedShape()', () => {
@@ -381,6 +392,9 @@ describe('identifyCagedShape()', () => {
     // Voicing where no note has degreeIndex 0
     const v = [null, pos(1,2,4,1), pos(2,0,7,2), null, null, null];
     expect(identifyCagedShape(v)).toBe(null);
+  });
+  it('all-null voicing → null', () => {
+    expect(identifyCagedShape([null,null,null,null,null,null])).toBe(null);
   });
   it('G major open → G', () => expect(identifyCagedShape(G_OPEN_VOICING)).toBe('G'));
   it('root on strIdx 0, 5th on A string → E (not G)', () => {
