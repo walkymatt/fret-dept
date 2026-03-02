@@ -369,6 +369,11 @@ input[type="range"] {
   align-items: baseline;
 }
 
+.footer-links {
+  display: flex;
+  gap: 20px;
+}
+
 .footer-download {
   color: var(--text);
   text-decoration: underline;
@@ -478,7 +483,10 @@ input[type="range"] {
 
   <footer class="app-footer">
     <span class="footer-info">Fret Department: Guitar Chords &amp; Scales · v1.2.0 · 2026-03-02</span>
-    <a href="fret-department-standalone.html" download class="footer-download">Download standalone</a>
+    <span class="footer-links">
+      <a href="https://github.com/walkymatt/fret-dept" class="footer-download">GitHub</a>
+      <a href="fret-department-standalone.html" download class="footer-download">Download standalone</a>
+    </span>
   </footer>
 
 <script>

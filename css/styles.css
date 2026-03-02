@@ -362,6 +362,11 @@ input[type="range"] {
   align-items: baseline;
 }
 
+.footer-links {
+  display: flex;
+  gap: 20px;
+}
+
 .footer-download {
   color: var(--text);
   text-decoration: underline;
