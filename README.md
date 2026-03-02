@@ -1,4 +1,4 @@
-# Fret Department
+# Fret Department
 
 **Fret Department** is little vibe coded web app for viewing
 guitar chords and scales in terms of fretboard positions.
