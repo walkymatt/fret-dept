@@ -60,7 +60,10 @@ var SCALES = Object.freeze({
   locrian: [0, 1, 3, 5, 6, 8, 10],
   whole_tone: [0, 2, 4, 6, 8, 10],
   diminished_wh: [0, 2, 3, 5, 6, 8, 9, 11],
-  diminished_hw: [0, 1, 3, 4, 6, 7, 9, 10]
+  diminished_hw: [0, 1, 3, 4, 6, 7, 9, 10],
+  phrygian_dominant: [0, 1, 4, 5, 7, 8, 10],
+  double_harmonic_major: [0, 1, 4, 5, 7, 8, 11],
+  double_harmonic_minor: [0, 2, 3, 6, 7, 8, 11]
 });
 var SCALE_LABELS = Object.freeze({
   major: "Major",
@@ -77,7 +80,10 @@ var SCALE_LABELS = Object.freeze({
   locrian: "Locrian",
   whole_tone: "Whole Tone",
   diminished_wh: "Diminished (W-H)",
-  diminished_hw: "Diminished (H-W)"
+  diminished_hw: "Diminished (H-W)",
+  phrygian_dominant: "Phrygian Dominant",
+  double_harmonic_major: "Double Harmonic Major",
+  double_harmonic_minor: "Double Harmonic Minor"
 });
 function getScalePitchClasses(rootPc, scaleName) {
   const intervals = SCALES[scaleName];
@@ -165,6 +171,7 @@ var TUNINGS = Object.freeze({
   open_e: ["E2", "B2", "E3", "G#3", "B3", "E4"],
   open_a: ["E2", "A2", "E3", "A3", "C#4", "E4"],
   dadgad: ["D2", "A2", "D3", "G3", "A3", "D4"],
+  open_c: ["C2", "G2", "C3", "G3", "C4", "E4"],
   half_step_down: ["Eb2", "Ab2", "Db3", "Gb3", "Bb3", "Eb4"],
   full_step_down: ["D2", "G2", "C3", "F3", "A3", "D4"],
   drop_c: ["C2", "G2", "C3", "F3", "A3", "D4"]
@@ -177,6 +184,7 @@ var TUNING_LABELS = Object.freeze({
   open_e: "Open E (EBEg#be)",
   open_a: "Open A (EAEAc#e)",
   dadgad: "DADGAD",
+  open_c: "Open C (CGCGCe)",
   half_step_down: "Half Step Down (Eb)",
   full_step_down: "Full Step Down (D)",
   drop_c: "Drop C"

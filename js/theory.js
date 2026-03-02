@@ -86,9 +86,12 @@ export const SCALES = Object.freeze({
   lydian:             [0, 2, 4, 6, 7, 9, 11],
   mixolydian:         [0, 2, 4, 5, 7, 9, 10],
   locrian:            [0, 1, 3, 5, 6, 8, 10],
-  whole_tone:         [0, 2, 4, 6, 8, 10],
-  diminished_wh:      [0, 2, 3, 5, 6, 8, 9, 11],
-  diminished_hw:      [0, 1, 3, 4, 6, 7, 9, 10],
+  whole_tone:              [0, 2, 4, 6, 8, 10],
+  diminished_wh:           [0, 2, 3, 5, 6, 8, 9, 11],
+  diminished_hw:           [0, 1, 3, 4, 6, 7, 9, 10],
+  phrygian_dominant:       [0, 1, 4, 5, 7, 8, 10],
+  double_harmonic_major:   [0, 1, 4, 5, 7, 8, 11],
+  double_harmonic_minor:   [0, 2, 3, 6, 7, 8, 11],
 });
 
 export const SCALE_LABELS = Object.freeze({
@@ -104,9 +107,12 @@ export const SCALE_LABELS = Object.freeze({
   lydian:           'Lydian',
   mixolydian:       'Mixolydian',
   locrian:          'Locrian',
-  whole_tone:       'Whole Tone',
-  diminished_wh:    'Diminished (W-H)',
-  diminished_hw:    'Diminished (H-W)',
+  whole_tone:             'Whole Tone',
+  diminished_wh:          'Diminished (W-H)',
+  diminished_hw:          'Diminished (H-W)',
+  phrygian_dominant:      'Phrygian Dominant',
+  double_harmonic_major:  'Double Harmonic Major',
+  double_harmonic_minor:  'Double Harmonic Minor',
 });
 
 export function getScalePitchClasses(rootPc, scaleName) {
