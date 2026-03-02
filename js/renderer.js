@@ -307,8 +307,8 @@ export function renderChordDiagram(container, voicing, degreeLabels = [], opts =
     const by1  = strY(STRINGS - 1);      // always: top Y = high e
     const by2  = strY(fromString - 1);   // bottom Y = lowest barred string
     const barreColor = fingering.semi
-      ? 'rgba(230,126,34,0.70)'   // amber — semi-barre warning
-      : 'rgba(44,62,80,0.55)';    // dark slate — clean barre
+      ? 'rgba(175,80,20,0.70)'    // darker warm-orange — semi-barre warning
+      : 'rgba(150,100,40,0.60)';  // dark warm-tan (same hue as fretboard bg)
     svgRect(svg, bx - 5, by1, 10, by2 - by1, { fill: barreColor, rx: 5 });
   }
 

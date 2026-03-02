@@ -689,7 +689,7 @@ function renderChordDiagram(container, voicing, degreeLabels = [], opts = {}) {
     const bx = mLeft + 0.5 * FW;
     const by1 = strY(STRINGS - 1);
     const by2 = strY(fromString - 1);
-    const barreColor = fingering.semi ? "rgba(230,126,34,0.70)" : "rgba(44,62,80,0.55)";
+    const barreColor = fingering.semi ? "rgba(175,80,20,0.70)" : "rgba(150,100,40,0.60)";
     svgRect(svg, bx - 5, by1, 10, by2 - by1, { fill: barreColor, rx: 5 });
   }
   if (!isOpen) {

@@ -1,7 +1,7 @@
-# Guitar — Chords & Scales
+# Fret Department — Guitar Chords & Scales
 
 Pure client-side web app. Runtime has zero external dependencies.
-Primary distribution target: `guitar-standalone.html` — a single self-contained
+Primary distribution target: `fret-department-standalone.html` — a single self-contained
 file with all CSS and JS inlined. Must work when opened from `file://`.
 
 ## Architecture
@@ -109,13 +109,13 @@ Accepts a candidate only when:
 
 ```bash
 make bundle      # bun build js/app.js → bundle.js
-make standalone  # bundle + inline CSS → guitar-standalone.html (primary target)
+make standalone  # bundle + inline CSS → fret-department-standalone.html (primary target)
 make serve       # bundle then python3 -m http.server 5050
 make test        # bun test tests/
-make clean       # remove bundle.js and guitar-standalone.html
+make clean       # remove bundle.js and fret-department-standalone.html
 ```
 
-`bundle.js` and `guitar-standalone.html` are committed. **Rebuild after every
+`bundle.js` and `fret-department-standalone.html` are committed. **Rebuild after every
 source change:** `make standalone`.
 
 Server: `tmux new-session -d -s guitar-server -c /workspace/guitar 'python3 -m http.server 5050'`
@@ -138,7 +138,7 @@ make test   # 288 tests, 0 failures
 ## Key constraints & invariants
 
 - No runtime external dependencies — no CDN, no fonts, no network requests.
-- All features must work in `guitar-standalone.html` (offline, `file://`).
+- All features must work in `fret-department-standalone.html` (offline, `file://`).
 - Run `make standalone` after every source change.
 - Server must be launched non-blocking (via `tmux`).
 - `findBestVoicingInWindow` window is **exclusive** upper-bound: frets

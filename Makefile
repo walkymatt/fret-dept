@@ -4,7 +4,7 @@
 bundle:
 	bun build js/app.js --outfile=bundle.js --target=browser
 
-## Produce guitar-standalone.html — CSS and JS fully inlined, zero external files
+## Produce fret-department-standalone.html — CSS and JS fully inlined, zero external files
 standalone: bundle
 	python3 scripts/build-standalone.py
 
@@ -21,4 +21,4 @@ serve: bundle
 
 ## Remove generated artefacts
 clean:
-	rm -f bundle.js guitar-standalone.html
+	rm -f bundle.js fret-department-standalone.html

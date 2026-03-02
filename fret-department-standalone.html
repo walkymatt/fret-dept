@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Guitar — Chords & Scales</title>
+  <title>Fret Department</title>
 <style>
 /* ============================================================
    Guitar — minimal light theme
@@ -372,8 +372,8 @@ input[type="range"] {
 <body>
 
   <header>
-    <h1>Guitar</h1>
-    <p class="subtitle">Chords &amp; scales on the fretboard</p>
+    <h1>Fret Department</h1>
+    <p class="subtitle">Guitar Chords &amp; Scales</p>
   </header>
 
   <!-- Control panel -->
@@ -468,7 +468,7 @@ input[type="range"] {
   <!-- Scale diagram gallery (scale mode only) -->
   <div id="scale-gallery" class="voicing-gallery" style="display:none"></div>
 
-  <footer class="app-footer">Guitar Chords &amp; Scales · v1.2.0 · 2026-03-02</footer>
+  <footer class="app-footer">Fret Department: Guitar Chords &amp; Scales · v1.2.0 · 2026-03-02</footer>
 
 <script>
 // js/theory.js
@@ -1162,7 +1162,7 @@ function renderChordDiagram(container, voicing, degreeLabels = [], opts = {}) {
     const bx = mLeft + 0.5 * FW;
     const by1 = strY(STRINGS - 1);
     const by2 = strY(fromString - 1);
-    const barreColor = fingering.semi ? "rgba(230,126,34,0.70)" : "rgba(44,62,80,0.55)";
+    const barreColor = fingering.semi ? "rgba(175,80,20,0.70)" : "rgba(150,100,40,0.60)";
     svgRect(svg, bx - 5, by1, 10, by2 - by1, { fill: barreColor, rx: 5 });
   }
   if (!isOpen) {

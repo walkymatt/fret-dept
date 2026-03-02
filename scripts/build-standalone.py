@@ -36,10 +36,10 @@ except Exception:
 build_date = datetime.date.today().isoformat()
 html = re.sub(
     r'(<footer class="app-footer">)[^<]*(</footer>)',
-    rf'\g<1>Guitar Chords &amp; Scales · {version} · {build_date}\g<2>',
+    rf'\g<1>Fret Department: Guitar Chords &amp; Scales · {version} · {build_date}\g<2>',
     html,
 )
 
-out = root / "guitar-standalone.html"
+out = root / "fret-department-standalone.html"
 out.write_text(html)
 print(f"  wrote {out.name}  ({len(html)/1024:.1f} KB)")

@@ -1,4 +1,4 @@
-Guitar — Chords & Scales: project summary
+Fret Department — Guitar Chords & Scales: project summary
 ==========================================
 Release: v1.1.0
 
