@@ -118,6 +118,19 @@ make clean       # remove bundle.js and fret-department-standalone.html
 `bundle.js` and `fret-department-standalone.html` are committed. **Rebuild after every
 source change:** `make standalone`.
 
+### Release workflow
+
+```
+1. Edit VERSION (e.g. 1.3.0 → 1.4.0)
+2. make standalone        # stamps version into index.html + standalone
+3. git add -A && git commit -m "Release vX.Y.Z"
+4. git tag vX.Y.Z
+```
+
+`VERSION` is the single source of truth. `make standalone` writes the version into
+both `index.html` (dev server) and `fret-department-standalone.html`.
+**Never use `git describe` for the version** — the tag doesn't exist at build time.
+
 Server: `tmux new-session -d -s guitar-server -c /workspace/guitar 'python3 -m http.server 5050'`
 
 ## Tests
@@ -131,7 +144,7 @@ Three test files using `bun:test`:
 | `tests/fingering.test.js` | fingering.js — lookup, algorithm, barre, thumb, impossible |
 
 ```bash
-make test   # 288 tests, 0 failures
+make test   # 295 tests, 0 failures
 ```
 
 ## Key constraints & invariants
