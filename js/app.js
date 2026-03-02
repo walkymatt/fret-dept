@@ -157,7 +157,10 @@ function fixImpossibleVoicing(voicing, requiredPcs, bassPc) {
 function computeVoicings() {
   if (state.mode !== 'chord') { state.voicings = []; return; }
   const { pitchClasses, tuning } = getChordScaleData();
-  const bassPc = (state.inversion > 0 && state.inversion < pitchClasses.length)
+  // Always enforce: inversion 0 = root in bass, inversion N = Nth chord tone in bass.
+  // Previously root position used null (unconstrained), which let non-root bass
+  // notes (e.g. open low-E = E in a C major chord) pass through.
+  const bassPc = state.inversion < pitchClasses.length
     ? pitchClasses[state.inversion] : null;
   const raw = findVoicingsAcrossNeck(pitchClasses, tuning, VOICING_FRETS, 4, bassPc);
   const seen = new Set();
@@ -196,6 +199,13 @@ function populateInversionSelect() {
   });
 }
 
+/** Lowest non-zero fret played in a voicing (0 when all strings are open/muted). */
+function voicingMinFret(voicing) {
+  let m = Infinity;
+  for (const n of voicing) if (n !== null && n.fret > 0 && n.fret < m) m = n.fret;
+  return m === Infinity ? 0 : m;
+}
+
 function renderPositionNav(scrollToActive = false) {
   const navEl     = document.getElementById('position-nav');
   const galleryEl = document.getElementById('voicing-gallery');
@@ -212,7 +222,7 @@ function renderPositionNav(scrollToActive = false) {
   const { voicings, positionIndex } = state;
   const cur = voicings[positionIndex];
   const label = cur
-    ? `${cur.cagedShape ? cur.cagedShape + ' shape · ' : ''}fret ${cur.windowStart}`
+    ? `${cur.cagedShape ? cur.cagedShape + ' shape · ' : ''}fret ${voicingMinFret(cur.voicing)}`
     : 'No voicings found';
   document.getElementById('pos-label').textContent = label;
   document.getElementById('pos-count').textContent =
@@ -232,7 +242,8 @@ function renderPositionNav(scrollToActive = false) {
     renderChordDiagram(diagEl, v.voicing, degrees, { fingering });
     const lbl = document.createElement('div');
     lbl.className   = 'voicing-card-label';
-    lbl.textContent = v.cagedShape ? `${v.cagedShape}  fr${v.windowStart}` : `fr${v.windowStart}`;
+    const mf = voicingMinFret(v.voicing);
+    lbl.textContent = v.cagedShape ? `${v.cagedShape}  fr${mf}` : `fr${mf}`;
     card.appendChild(diagEl);
     card.appendChild(lbl);
     card.addEventListener('click', () => {
