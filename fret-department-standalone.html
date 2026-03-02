@@ -364,7 +364,15 @@ input[type="range"] {
   padding: 10px 0 32px;
   font-size: 0.9rem;
   color: var(--text-dim);
-  text-align: left;
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.footer-download {
+  color: var(--text);
+  text-decoration: underline;
+  white-space: nowrap;
 }
 
   </style>
@@ -468,7 +476,10 @@ input[type="range"] {
   <!-- Scale diagram gallery (scale mode only) -->
   <div id="scale-gallery" class="voicing-gallery" style="display:none"></div>
 
-  <footer class="app-footer">Fret Department: Guitar Chords &amp; Scales · v1.2.0 · 2026-03-02</footer>
+  <footer class="app-footer">
+    <span class="footer-info">Fret Department: Guitar Chords &amp; Scales · v1.2.0 · 2026-03-02</span>
+    <a href="fret-department-standalone.html" download class="footer-download">Download standalone</a>
+  </footer>
 
 <script>
 // js/theory.js

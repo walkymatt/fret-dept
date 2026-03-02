@@ -119,7 +119,6 @@ make clean       # remove bundle.js and fret-department-standalone.html
 source change:** `make standalone`.
 
 Server: `tmux new-session -d -s guitar-server -c /workspace/guitar 'python3 -m http.server 5050'`
-External URL: `http://209.35.70.193:5050`
 
 ## Tests
 

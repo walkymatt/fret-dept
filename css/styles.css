@@ -357,5 +357,13 @@ input[type="range"] {
   padding: 10px 0 32px;
   font-size: 0.9rem;
   color: var(--text-dim);
-  text-align: left;
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.footer-download {
+  color: var(--text);
+  text-decoration: underline;
+  white-space: nowrap;
 }

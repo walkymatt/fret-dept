@@ -35,7 +35,7 @@ except Exception:
     version = 'v?.?.?'
 build_date = datetime.date.today().isoformat()
 html = re.sub(
-    r'(<footer class="app-footer">)[^<]*(</footer>)',
+    r'(<span class="footer-info">)[^<]*(</span>)',
     rf'\g<1>Fret Department: Guitar Chords &amp; Scales · {version} · {build_date}\g<2>',
     html,
 )
